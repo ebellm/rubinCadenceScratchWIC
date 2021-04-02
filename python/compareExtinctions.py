@@ -3,7 +3,7 @@
 #
 
 #
-# Use Bovy's dustmaps and Alessandro Massi's STILISM_LOCAL.py to
+# Use Bovy's dustmaps and Alessandro Mazzi's STILISM_LOCAL.py to
 # compare the lallement and bovy extinction predictions for a
 # particular sight line.
 #

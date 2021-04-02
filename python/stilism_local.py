@@ -1,7 +1,7 @@
 """This script gets the value of E(B-V) from Lallement's extinction map.
 One pointing at a time.
 
-Written by Alessandro Massi, a few edits made by Will Clarkson
+Written by Alessandro Mazzi, a few edits made by Will Clarkson
 2021-04-02
 
 """
