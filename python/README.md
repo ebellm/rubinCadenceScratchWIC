@@ -8,6 +8,6 @@ Lallement et al. 2019 is queried using the routine **stilism_local.py**, written
 https://github.com/jobovy/mwdust
 
 For info about stilism, particularly the relevant papers and caveats, see here: https://stilism.obspm.fr/ but notice this seems to point to an older version of the map (which 
-reports the gradient in E(B-V)). The updated version (which reports extinction as A_555, or roughly A_V), can be found at Vizier: 
+reports the gradient in E(B-V)). The updated version (which also reports extinction as A_555nm, or roughly A_V), can be found at Vizier: 
 http://cdsarc.unistra.fr/viz-bin/cat/J/A+A/625/A135
 
