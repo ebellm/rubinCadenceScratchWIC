@@ -779,7 +779,7 @@ def loopSightlines(nside=64, imin=0, imax=25, \
     
     # How far through this are we going to go?
     if imax < 0 or imax > npix:
-        imax = nSightlines
+        imax = npix
 
     # set imin appropriately
     if imin > imax:
@@ -838,7 +838,7 @@ def loopSightlines(nside=64, imin=0, imax=25, \
                               useTwoBinnings=True, \
                               nBinsAllSightlines=nbins, \
                               Rv=3.1, \
-                              pixFillFrac=fracPix, \
+                              pixFillFac=fracPix, \
                               nested=nested, \
                               nside=nside, \
                               objBovy=combined19, \
