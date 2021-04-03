@@ -15,9 +15,14 @@ import numpy as np
 # for timings
 import time
 
+# To auto-generate output folder for extinction maps if not present
+import os
+
 # To space the samples out in equatorial rather than galactic
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+
+from astropy.io import fits
 
 # To determine spacings for samples about a central sight line
 import healpy as hp
@@ -294,7 +299,7 @@ def testOneSightline(l=0., b=4., Rv=3.1, useCoarse=False):
     los.showLos(showPoints=True)
 
 def hybridSightline(lCen=0., bCen=4., \
-                    nl=7, nb=7, \
+                    nl=5, nb=5, \
                     maxPc=9000., minPc=0.5, stepPc=25, \
                     nside=64, \
                     pixFillFac=1.0, collisionArcmin=2., \
@@ -310,7 +315,9 @@ def hybridSightline(lCen=0., bCen=4., \
                     figName='', \
                     useTwoBinnings=True, \
                     nBinsAllSightlines = 500, \
-                    distancesPc = np.array([]) ):
+                    distancesPc = np.array([]), \
+                    hpid=-1, nested=False, \
+                    objBovy=None):
 
     """Samples the Bovy et al. and Lallement et al. 2019 E(B-V) vs
     distance maps, constructed as the median E(B-V) vs distance curve
@@ -402,6 +409,17 @@ model.
 
     distancesPc = input array of distances in parsecs. If supplied, all the clever distance methods here are ignored in favor of the input distances.
 
+    hpid: if >0, then a healpix ID is being supplied, and will
+    override the choice of l, b. The field center is constructed from
+    this healpix id.
+
+    nested: if using hpids, is this with NESTED? Default is False
+    because sims_maf seems to use RING by default.
+
+    objBovy = bovy et al. dust object. Defaults to None and is
+    re-initialized in this method. But, could be passed in here too to
+    save time.
+
     EXAMPLE CALL:
 
     compareExtinctions.hybridSightline(0, 4, figName='test_l0b4_ebvCompare.png', nl=5, nb=5, tellTime=True)
@@ -423,16 +441,27 @@ model.
 
     # create meshgrid and ravel into 1D arrays
     ll, bb = np.meshgrid(dL, dB)
-
+    
     # convert the field center into equatorial so that we can generate
     # the samples within the healpix
-    coo = SkyCoord(lCen*u.deg, bCen*u.deg, frame='galactic')
-    raCen = coo.icrs.ra.degree
-    deCen = coo.icrs.dec.degree
-
+    if hpid < 0:
+        cooGAL = SkyCoord(lCen*u.deg, bCen*u.deg, frame='galactic')
+        raCen = cooGAL.icrs.ra.degree
+        deCen = cooGAL.icrs.dec.degree
+    else:
+        raCen, deCen = hp.pix2ang(nside, hpid, nested, lonlat=True)
+        cooEQ = SkyCoord(raCen*u.degree, deCen*u.degree, frame='icrs')
+        lCen = cooEQ.galactic.l.degree
+        bCen = cooEQ.galactic.b.degree
+        
     vRA = ll.ravel() + raCen
     vDE = bb.ravel() + deCen
 
+    # Ensure the coords of the samples actually are on the sphere...
+    bSampl = (vDE >= -90.) & (vDE <= 90.)
+    vRA = vRA[bSampl]
+    vDE = vDE[bSampl]
+    
     cooSamples = SkyCoord(vRA*u.deg, vDE*u.deg, frame='icrs')
     vL = np.asarray(cooSamples.galactic.l.degree)
     vB = np.asarray(cooSamples.galactic.b.degree)
@@ -458,9 +487,14 @@ model.
     vB = vB[bSamplesKeep]
 
     # OK now we can proceed. First build the line of sight for the
-    # center, then repeat for the nearby sight lines
-    combined19 = mwdust.Combined19()
-
+    # center, then repeat for the nearby sight lines. If we already
+    # initialized the bovy dust object somewhere else, we can pass it
+    # in. If not initialized, then we initialize here.
+    if objBovy is None:
+        combined19 = mwdust.Combined19()
+    else:
+        combined19 = objBovy
+        
     # for our timing report: how long did it take to get this far?
     t1 = time.time()
     
@@ -565,20 +599,34 @@ model.
     # we set a minimum (if bovy AT THE COMPARISON POINT is below our
     # threshold minEBV, then we do no scaling).
     rvFactor = 1. # our default: no scaling.
+    quadFactor = 1.
     iMaxL19 = np.argmin(np.abs(distsMed - distCompare))
     if ebvBovyMed[iMaxL19] > minEBV:
         rvFactor = ebvL19Med[iMaxL19] / ebvBovyMed[iMaxL19]
+
+        # Also compute a factor for quadratic scaling if we want to
+        # try that
+        quadFactor = ebvBovyMed[iMaxL19] / ebvL19Med[iMaxL19]
+        
     RvScaled = Rv * rvFactor
 
     ### Merge the two median curves. This will be our E(B-V) curve
     ### with distance.
     ebvHybrid = np.copy(ebvBovyMed)
     b19 = distsMed < distCompare
-    ebvHybrid[b19] = ebvL19Med[b19]/rvFactor
+    ebvL19scaled = ebvL19Med/rvFactor
 
+    # try quadratic scaling (note that the area plot later doesn't yet
+    # know about this)
+    # ebvL19scaled = quadFactor * ebvL19Med**2
+    
+    #ebvHybrid[b19] = ebvL19Med[b19]/rvFactor
+    ebvHybrid[b19] = ebvL19scaled[b19]
+    
     bBovBad = ebvHybrid < minEBV
-    ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
-
+    # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
+    ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
+    
     if tellTime:
         t2 = time.time()
         dtBovy = t1 - t0
@@ -591,7 +639,7 @@ model.
     # if not plotting, return
     if not doPlots:
         if returnValues:
-            return ebvHybrid, distsMed
+            return ebvHybrid, distsMed, 1.0
         else:
             return
         
@@ -627,7 +675,7 @@ model.
     
     # show lallement et al. scaled up to bovy et al. at the transition
     coloScaled='b'
-    dumScal = ax1.plot(distsMed[b19], ebvL19Med[b19]/rvFactor, \
+    dumScal = ax1.plot(distsMed[b19], ebvL19scaled[b19], \
                        color=coloScaled, \
                        lw=2, \
                        ls=':', \
@@ -691,4 +739,158 @@ model.
         fig1.savefig(figName, overwrite=True)
 
     if returnValues:
-        return ebvHybrid, distsMed
+        return ebvHybrid, distsMed, rvFactor
+
+def loopSightlines(nside=64, imin=0, imax=25, \
+                   nbins=300, nested=False, \
+                   nl=5, nb=5, tellTime=False, \
+                   reportInterval=100, \
+                   fitsPath='', \
+                   dirChunks='./ebvChunks', \
+                   fracPix=1.):
+
+    """Wrapper: samples the 3D extinction hybrid model for a range of
+    healpixels
+
+    nside = healpix nside
+ 
+    imin, imax = first and last hpids to use 
+
+    nbins = number of distance bins to use for each sightline
+
+    nl, nb = number of samples to use around each sight line
+
+    reportInterval = write do disk (and/or provide screen output)
+    every this many healpix
+
+    fitsPath = if >3 characters, the path to output fits file that
+    overrides auto-generated output path
+
+    dirChunks = if auto-generating the output path, the directory into
+    which the file will go. Ignored if fewer than 4 characters.
+
+    """
+
+    # set up the healpix quantities
+    npix = hp.nside2npix(nside)
+
+    print("loopSightlines INFO: nside %i, npix %i, %.3e" \
+          % (nside, npix, npix))
+    
+    # How far through this are we going to go?
+    if imax < 0 or imax > npix:
+        imax = nSightlines
+
+    # set imin appropriately
+    if imin > imax:
+        imin = np.max([imax - 25, 0])
+        
+        print("loopSightlines WARN - supplied imax > imin. Defaulted to %i, %i" % (imin, imax))
+        
+    # Number of sightlines
+    nSightlines = imax - imin
+
+    # let's construct a filename for this segment so we can keep track
+    # of them later.
+    if len(fitsPath) < 4:
+        fitsChunk = 'ebv3d_nside%i_hp%i_%i.fits' % (nside, imin, imax)
+        if len(dirChunks) > 3:
+            fitsPath = '%s/%s' % (dirChunks, fitsChunk)
+            if not os.access(dirChunks, os.R_OK):
+                dirChunks = os.makedirs(dirChunks)
+        else:
+            fitsPath = fitsChunk[:]
+                
+    # set up distance and E(B-V) arrays for only the ones we will be
+    # running. We also store the healpix IDs so that we could do this
+    # in pieces and then stitch them together later.
+    shp = (nSightlines, nbins)
+
+    # set up the arrays we'll be using
+    hpids = np.arange(imin, imax)
+    dists = np.zeros(shp)
+    ebvs  = np.zeros(shp)
+
+    # Let's keep track of the scale factor we used to merge L19 with
+    # Bovy et al:
+    sfacs = np.ones(nSightlines)
+
+    # Set up header information for the inevitable serialization. I
+    # think astropy has a nice way to do this, for the moment we can
+    # build one with a dictionary.
+    dMeta = {'nside':nside, 'nested':nested, \
+             'hpmin':imin, 'hpmax':imax, \
+             'nbins':nbins, 'nl':nl, 'nb':nb, \
+             'fracPix':fracPix}
+
+    # For reporting the sightlines to terminal
+    tStart = time.time()
+    
+    # OK now loop through this. We don't want to have to redo the bovy
+    # initialization for each sight line, so let's initialize it here.
+    combined19 = mwdust.Combined19()
+    
+    for iHP in range(np.size(hpids)):    
+        ebvsThis, distsThis, rvFactor  \
+            = hybridSightline(0., 0., \
+                              nl=nl, nb=nb, \
+                              setLimDynamically=False, \
+                              useTwoBinnings=True, \
+                              nBinsAllSightlines=nbins, \
+                              Rv=3.1, \
+                              pixFillFrac=fracPix, \
+                              nested=nested, \
+                              nside=nside, \
+                              objBovy=combined19, \
+                              doPlots=False, \
+                              tellTime=tellTime, \
+                              returnValues=True, \
+                              hpid=hpids[iHP])
+
+        # now put the results into the master arrays by row number
+        # (which is why we loop through the length of the hp array and
+        # not the hpids themselves):
+        dists[iHP] = distsThis
+        ebvs[iHP] = ebvsThis
+        sfacs[iHP] = rvFactor
+
+        # Write to disk every so often
+        if iHP >= reportInterval and iHP % reportInterval < 1:
+            writeExtmap(hpids, dists, ebvs, sfacs, dMeta, fitsPath)
+
+            print("loopSightlines INFO: %i of %i: hpid %i: %.2e s" \
+                  % (iHP, nSightlines, hpids[iHP], time.time()-tStart))
+            
+    # use our method to write to disk
+    writeExtmap(hpids, dists, ebvs, sfacs, dMeta, fitsPath)
+    
+def writeExtmap(hpids=np.array([]), dists=np.array([]), \
+                ebvs=np.array([]), sfacs=np.array([]), \
+                dMeta={}, fitsPath='test.fits'):
+
+    """Writes extinction map segment to fits. HDUs are, in this order:
+
+    hpids, distance bins, E(B-V)s, scale factors
+
+    dMeta = dictionary of metadata keywords to pass
+
+    fitsPath = filename for output file"""
+
+    if np.size(hpids) < 1:
+        return
+
+    hdu0 = fits.PrimaryHDU(hpids)
+    for sKey in dMeta.keys():
+        hdu0.header[sKey] = dMeta[sKey]
+
+    # ... then the secondary arrays, which we will serialize as image hdus:
+    hdul = fits.HDUList([hdu0])
+
+    # now we append them
+    for thisArr in [dists, ebvs, sfacs]:
+        hdul.append(fits.ImageHDU(thisArr))
+    
+    hdul.writeto(fitsPath, overwrite=True)
+
+    # close the hdulist
+    hdul.close()
