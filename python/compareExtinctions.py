@@ -15,8 +15,8 @@ import numpy as np
 # for timings
 import time
 
-# To auto-generate output folder for extinction maps if not present
-import os
+# For filename operations and optional directory creation
+import os, glob
 
 # To space the samples out in equatorial rather than galactic
 from astropy.coordinates import SkyCoord
@@ -856,7 +856,9 @@ def loopSightlines(nside=64, imin=0, imax=25, \
 
         # Write to disk every so often
         if iHP >= reportInterval and iHP % reportInterval < 1:
-            writeExtmap(hpids, dists, ebvs, sfacs, dMeta, fitsPath)
+            writeExtmap(hpids, dists, ebvs, sfacs, \
+                        dMeta=dMeta, \
+                        fitsPath=fitsPath)
 
             print("loopSightlines INFO: %i of %i: hpid %i: %.2e s" \
                   % (iHP, nSightlines, hpids[iHP], time.time()-tStart))
@@ -866,20 +868,26 @@ def loopSightlines(nside=64, imin=0, imax=25, \
     
 def writeExtmap(hpids=np.array([]), dists=np.array([]), \
                 ebvs=np.array([]), sfacs=np.array([]), \
-                dMeta={}, fitsPath='test.fits'):
+                masks=np.array([]), \
+                dMeta={}, header=None, fitsPath='test.fits'):
 
     """Writes extinction map segment to fits. HDUs are, in this order:
 
-    hpids, distance bins, E(B-V)s, scale factors
+    hpids, distance bins, E(B-V)s, scale factors = data arrays to write
+
+    masks = optional boolean mask array
 
     dMeta = dictionary of metadata keywords to pass
+
+    header = template header to send to the primary HDU
 
     fitsPath = filename for output file"""
 
     if np.size(hpids) < 1:
         return
 
-    hdu0 = fits.PrimaryHDU(hpids)
+    # Generate primary header, accepting template header if given
+    hdu0 = fits.PrimaryHDU(hpids, header=header)
     for sKey in dMeta.keys():
         hdu0.header[sKey] = dMeta[sKey]
 
@@ -887,10 +895,94 @@ def writeExtmap(hpids=np.array([]), dists=np.array([]), \
     hdul = fits.HDUList([hdu0])
 
     # now we append them
-    for thisArr in [dists, ebvs, sfacs]:
+    for thisArr in [dists, ebvs, sfacs, masks]:
+
         hdul.append(fits.ImageHDU(thisArr))
     
     hdul.writeto(fitsPath, overwrite=True)
 
     # close the hdulist
     hdul.close()
+
+def mergeMaps(sSrch='ebv3d_nside64_*fits', \
+              pathJoined='merged_ebv3d_nside64.fits'):
+
+    """Given partial healpix maps, merge them into a single all-sky hp
+map. A list of paths matching the search string is constructed, and
+the all-sky map constructed by slotting in the populated rows from the
+individual files.
+
+    """
+
+    lPaths = glob.glob(sSrch)
+    if len(lPaths) < 1:
+        print("mergeMaps WARN - no paths match string %s" % (sSrch))
+        return
+
+    # ensure the output file doesn't overwrite any of the input files
+    if len(pathJoined) < 4:
+        pathJoined = 'test_mergedmaps.fits'
+
+    # if the joined path is in the path of files, remove it from the
+    # list to consider and prepend "tmp_" to the output path. This
+    # should guard against any overwriting of input files.
+    if pathJoined in lPaths:
+        print("mergeMaps INFO - output path %s already in input path list. Removing from input path list and using a different output path." % (pathJoined))
+        lPaths.remove(pathJoined)
+        pathJoined = 'tmp_%s' % (os.path.split(pathJoined)[-1])
+        
+    # read the healpix info from the header of the first file in the
+    # list. For the moment we trust the header rather than
+    # constructing this information from the input data.
+    hdr0 = fits.getheader(lPaths[0])
+
+    try:
+        nested = hdr0['NESTED']
+        nside = hdr0['NSIDE']
+        nbins = hdr0['NBINS']
+    except:
+        print("mergeMaps WARN - problem reading header keywords from %s" \
+              % (lPaths[0]))
+        return
+        
+    # Now we construct our master arrays.
+    npix = hp.nside2npix(nside)
+
+    # hpid, distance, ebvs, and a mask array. The mask array follows
+    # np.masked convention that the mask is FALSE for GOOD points.
+    hpidsMaster = np.arange(npix)
+    distsMaster = np.zeros((npix, nbins))
+    ebvsMaster = np.zeros((npix, nbins))
+    sfacsMaster = np.zeros((npix))
+    maskMaster = np.ones((npix, nbins), dtype='uint')
+
+    # OK now we slot in the various pieces
+    for path in lPaths:
+        hdul = fits.open(path)
+        rowsThis = hdul[0].data
+
+        distsMaster[rowsThis] = hdul[1].data
+        ebvsMaster[rowsThis] = hdul[2].data
+        sfacsMaster[rowsThis] = hdul[3].data
+
+        # This is a little clunky, since we're allowing for the
+        # possibility that the input data might or might not have mask
+        # data written, and that mask data may or may not be zero
+        # sized.
+        hasMask = False
+        if len(hdul) > 4:
+            if np.size(hdul[4].data) > 0:
+                maskMaster[rowsThis] = hdul[4].data
+                hasMask = True
+
+        if not hasMask:
+            maskMaster[rowsThis, :] = 0
+            
+        # Close the hdulist before moving on
+        hdul.close()
+
+    # now we have our combined arrays and template header. Write them!
+    writeExtmap(hpidsMaster, distsMaster, ebvsMaster, sfacsMaster, \
+                maskMaster, \
+                header=hdr0, \
+                fitsPath=pathJoined)
