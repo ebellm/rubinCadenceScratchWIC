@@ -2,6 +2,11 @@
 # compareExtinctions.py
 #
 
+# Started 2021-04-02 by Will Clarkson (UM-Dearborn), with important
+# improvements made by Alessandro Mazzi (INAF)
+#
+#
+
 #
 # Use Bovy's dustmaps and Alessandro Mazzi's STILISM_LOCAL.py to
 # compare the lallement and bovy extinction predictions for a
@@ -1001,6 +1006,11 @@ def loopSightlines(nside=64, imin=0, imax=25, \
              'nbins':nbins, 'nl':nl, 'nb':nb, \
              'fracPix':fracPix}
 
+    # 2021-04-05: if planck_2d is available on this system, add this
+    # to the header (we do not yet have any option to deactivate the
+    # substitution if present).
+    dMeta['PlanckOK'] = PLANCK_2D is not None
+    
     # For reporting the sightlines to terminal
     tStart = time.time()
     
