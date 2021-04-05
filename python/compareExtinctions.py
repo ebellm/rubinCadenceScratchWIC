@@ -776,7 +776,9 @@ def loopSightlines(nside=64, imin=0, imax=25, \
                    reportInterval=100, \
                    fitsPath='', \
                    dirChunks='./ebvChunks', \
-                   fracPix=1.):
+                   fracPix=1., \
+                   map_version='19', \
+                   Rv=3.1):
 
     """Wrapper: samples the 3D extinction hybrid model for a range of
     healpixels
@@ -797,6 +799,10 @@ def loopSightlines(nside=64, imin=0, imax=25, \
 
     dirChunks = if auto-generating the output path, the directory into
     which the file will go. Ignored if fewer than 4 characters.
+
+    map_version = version of the L+19 map to send to the sightlines
+
+    Rv = Rv needed for the L+19 map object
 
     """
 
@@ -857,7 +863,12 @@ def loopSightlines(nside=64, imin=0, imax=25, \
     
     # OK now loop through this. We don't want to have to redo the bovy
     # initialization for each sight line, so let's initialize it here.
+    print ("loopSightlines - initializing Bovy...")
     combined19 = mwdust.Combined19()
+
+    # We also initialize the Lallement+19 map object
+    print("loopSightlines - initializing L19...")
+    l19 = stilism_local.LallementDustMap(version=map_version,Rv=Rv)
     
     for iHP in range(np.size(hpids)):    
         ebvsThis, distsThis, rvFactor  \
@@ -866,11 +877,12 @@ def loopSightlines(nside=64, imin=0, imax=25, \
                               setLimDynamically=False, \
                               useTwoBinnings=True, \
                               nBinsAllSightlines=nbins, \
-                              Rv=3.1, \
+                              Rv=Rv, \
                               pixFillFac=fracPix, \
                               nested=nested, \
                               nside=nside, \
                               objBovy=combined19, \
+                              objL19=l19, \
                               doPlots=False, \
                               tellTime=tellTime, \
                               returnValues=True, \
