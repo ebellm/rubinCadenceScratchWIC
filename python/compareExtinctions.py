@@ -864,8 +864,10 @@ def loopSightlines(nside=64, imin=0, imax=25, \
                   % (iHP, nSightlines, hpids[iHP], time.time()-tStart))
             
     # use our method to write to disk
-    writeExtmap(hpids, dists, ebvs, sfacs, dMeta, fitsPath)
-    
+    writeExtmap(hpids, dists, ebvs, sfacs, \
+                        dMeta=dMeta, \
+                        fitsPath=fitsPath)
+
 def writeExtmap(hpids=np.array([]), dists=np.array([]), \
                 ebvs=np.array([]), sfacs=np.array([]), \
                 masks=np.array([]), \
