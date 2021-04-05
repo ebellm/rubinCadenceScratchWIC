@@ -41,6 +41,7 @@ or can be re-imported here."""
                  distMaxPc=8000, distMinPc=0.5, distStepPc=10, \
                  distances=np.array([]), \
                  objBovy = None, Rv=3.1, \
+                 objL19=None, \
                  distMaxCoarsePc = 15000., \
                  nDistBins = 400,
                  map_version='19'):
@@ -85,9 +86,16 @@ or can be re-imported here."""
         self.ebvL19 = np.array([])
         self.ebvBovy = np.array([])
 
-        # the version of LallementDustMap must be either '18' or '19', as string
-        self.lallementMap = stilism_local.LallementDustMap(version=map_version,Rv=Rv)
-
+        # Set up L19 map
+        
+        # the version of LallementDustMap must be either '18' or '19',
+        # as string
+        if objL19 is None:
+            self.lallementMap \
+                = stilism_local.LallementDustMap(version=map_version,Rv=Rv)
+        else:
+            self.lallementMap = objL19
+            
     def generateDistances(self, Verbose=False):
 
         """Generates a distance array appropriate for this sight
@@ -323,7 +331,9 @@ def hybridSightline(lCen=0., bCen=4., \
                     nBinsAllSightlines = 500, \
                     distancesPc = np.array([]), \
                     hpid=-1, nested=False, \
-                    objBovy=None):
+                    objBovy=None, \
+                    objL19=None, \
+                    versionL19='19'):
 
     """Samples the Bovy et al. and Lallement et al. 2019 E(B-V) vs
     distance maps, constructed as the median E(B-V) vs distance curve
@@ -426,6 +436,10 @@ model.
     re-initialized in this method. But, could be passed in here too to
     save time.
 
+    objL19 = Lallement et al. map object. Defaults to None and is
+    re-initialized in this method using the Rv and versionL19
+    arguments
+
     EXAMPLE CALL:
 
     compareExtinctions.hybridSightline(0, 4, figName='test_l0b4_ebvCompare.png', nl=5, nb=5, tellTime=True)
@@ -500,6 +514,13 @@ model.
         combined19 = mwdust.Combined19()
     else:
         combined19 = objBovy
+
+    # L+19 object-oriented map - can be passed in
+    if objL19 is None:
+        L19map \
+            = stilism_local.LallementDustMap(version=versionL19,Rv=Rv)
+    else:
+        L19map = objL19
         
     # for our timing report: how long did it take to get this far?
     t1 = time.time()
@@ -507,6 +528,7 @@ model.
     # now build the line of sight
     losCen = lineofsight(lCen, bCen, maxPc, minPc, stepPc, \
                          objBovy=combined19, Rv=Rv, \
+                         objL19=L19map, \
                          nDistBins=nBinsAllSightlines, \
                          distances=distancesPc)
 
@@ -552,6 +574,7 @@ model.
         losThis = lineofsight(vL[iSample], vB[iSample], \
                               maxPc, minPc, stepPc, \
                               objBovy=combined19, \
+                              objL19=L19map, \
                               Rv=Rv, \
                               distances=distsInput)
         losThis.getLallementEBV()
