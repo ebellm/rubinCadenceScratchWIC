@@ -8,8 +8,19 @@
 # particular sight line.
 #
 
+# Bovy et al. and stilism_local - must be included
 import mwdust
 import stilism_local
+
+# If we want to query planck2d for every sightline, not just those we
+# tabulated
+try:
+    from dustmaps.planck import PlanckQuery
+    PLANCK_2D = PlanckQuery()
+except:
+    PLANCK_2D = None
+
+# Standard methods
 import numpy as np
 
 # for timings
@@ -76,6 +87,9 @@ or can be re-imported here."""
             self.distsPc = np.array([])
         self.distLimPc = 1e9 # initialize very high
 
+        # Map-relevant quantities follow.
+        self.planckValue = 0. # planck 2d query at this sight line.
+        
         # bovy et al. distance model - if not initialised
         if objBovy is None:
             self.objBovy = mwdust.Combined19()
@@ -213,6 +227,20 @@ Bovy et al.
         bLo = self.ebvBovy < 0.
         self.ebvBovy[bLo] = 0.
         
+    def getPlanck2D(self):
+
+        """Gets the 2D planck value of the extinction for this sightline, if
+dustmaps is present."""
+
+        # Do nothing if the dustmaps.planck is not on the system
+        if PLANCK_2D is None:
+            return
+
+        # planck2d expects astropy skycoo coordinates. Although the
+        # method that called this instance may already have the coords
+        # developed, it should be quick to generate one here.
+        coo = SkyCoord(self.l*u.deg, self.b*u.deg, frame='galactic')
+        self.planckValue = PLANCK_2D(coo)
         
     def showLos(self, ax=None, alpha=1.0, lw=1, zorder=5, \
                 noLabel=False, \
@@ -333,7 +361,9 @@ def hybridSightline(lCen=0., bCen=4., \
                     hpid=-1, nested=False, \
                     objBovy=None, \
                     objL19=None, \
-                    versionL19='19'):
+                    versionL19='19', \
+                    planckMap=None, \
+                    planckUpperLim = 10.):
 
     """Samples the Bovy et al. and Lallement et al. 2019 E(B-V) vs
     distance maps, constructed as the median E(B-V) vs distance curve
@@ -440,6 +470,13 @@ model.
     re-initialized in this method using the Rv and versionL19
     arguments
 
+    planckMap = healpix 2d map of Planck E(B-V) predictions. Ignored
+    if the query coords were not healpix, OR if Green's "dustmaps" is
+    available on the system.
+
+    planckUpperLim = upper limit for planck E(B-V) to be considered
+    "sensible"
+
     EXAMPLE CALL:
 
     compareExtinctions.hybridSightline(0, 4, figName='test_l0b4_ebvCompare.png', nl=5, nb=5, tellTime=True)
@@ -464,6 +501,7 @@ model.
     
     # convert the field center into equatorial so that we can generate
     # the samples within the healpix
+    planckCen = 0.
     if hpid < 0:
         cooGAL = SkyCoord(lCen*u.deg, bCen*u.deg, frame='galactic')
         raCen = cooGAL.icrs.ra.degree
@@ -473,6 +511,14 @@ model.
         cooEQ = SkyCoord(raCen*u.degree, deCen*u.degree, frame='icrs')
         lCen = cooEQ.galactic.l.degree
         bCen = cooEQ.galactic.b.degree
+
+        # fudge for wraparound, to use the same scheme as the samples
+        if lCen > 180:
+            lCen -= 360.
+        
+        # do we have a planck map?
+        if planckMap is not None:
+            planckCen = planckMap[hpid]
         
     vRA = ll.ravel() + raCen
     vDE = bb.ravel() + deCen
@@ -540,12 +586,13 @@ model.
     
     losCen.getLallementEBV()
     losCen.getBovyEBV()
-
+    losCen.getPlanck2D()
+    
     # Set up a figure...
     if doPlots:
-        fig1 = plt.figure(1, figsize=(12,5))
+        fig1 = plt.figure(1, figsize=(12,6))
         fig1.clf()
-        fig1.subplots_adjust(wspace=0.3)
+        fig1.subplots_adjust(wspace=0.3, hspace=0.3)
 
         # let's try using gridspec to customize our layout
         gs = fig1.add_gridspec(nrows=2, ncols=3)
@@ -556,12 +603,20 @@ model.
         losCen.showLos(ax=ax1, alpha=0.1, lw=2, zorder=10, noLabel=True)
         losCen.decorateAxes(ax1)
         losCen.showDistMax(ax1)
-    
+
+        ## Show the planck prediction if we have it
+        #if losCen.planckValue > 0:
+        #    ax1.axhline(losCen.planckValue, ls='--', \
+        #                label='Planck 2D', color='g')
+        
     # construct arrays for all the samples as a function of
     # distance. We'll do this vstack by vstack.
     stackDist = np.copy(losCen.distsPc) # to ensure they're all the same...
     stackL19 = np.copy(losCen.ebvL19)
     stackBovy = np.copy(losCen.ebvBovy)
+
+    # Any 2D maps we use will only have a single value for each LOS.
+    stackPlanck2D = np.array([losCen.planckValue])
     
     # now loop through the samples. We pass in the same distance array
     # as we used for the central line of sight, IF we are using our
@@ -579,7 +634,15 @@ model.
                               distances=distsInput)
         losThis.getLallementEBV()
         losThis.getBovyEBV()
+        losThis.getPlanck2D()
+        
+        #if doPlots:
+        #    # Show the planck prediction if we have it
+        #    if losThis.planckValue > 0:
+        #        ax1.axhline(losThis.planckValue, ls='--', \
+        #                    label='', color='g')
 
+        
         #if doPlots:
         #    losThis.showLos(ax=ax1, alpha=0.3, lw=1, zorder=3)
 
@@ -589,12 +652,29 @@ model.
         stackL19  = np.vstack(( stackL19,  losThis.ebvL19 ))
         stackBovy = np.vstack(( stackBovy, losThis.ebvBovy ))
 
+        # stack any 2D maps we have
+        stackPlanck2D = np.hstack(( stackPlanck2D, losThis.planckValue ))
+        
     # now compute the statistics. We do the median and the upper and
     # lower percentiles.
     distsMed = np.median(stackDist, axis=0)
     ebvL19Med = np.median(stackL19, axis=0)    
     ebvBovyMed = np.median(stackBovy, axis=0)
 
+    # add any 2D extinction arrays we're using. Note that along some
+    # sightlines (like 0,0), Planck produces very high E(B-V)
+    # predictions - like 300. So set an upper limit.
+    bPlanck = stackPlanck2D < planckUpperLim
+    planck2DMed = 0.
+    
+    if np.sum(bPlanck) > 0:
+        planck2DMed = np.median(stackPlanck2D[bPlanck])
+
+    # If dustmaps is not on this system, then substitute in the planck
+    # map at the central LOS if one was supplied.
+    if planck2DMed < 1e-5 and planckCen is not None:
+        planck2DMed = np.copy(planckCen)
+        
     # find the scale factor for the Rv factor that causes L19 to line
     # up with Bovy et al. along the sight line, out to our desired
     # comparison distance.
@@ -635,7 +715,14 @@ model.
 
         # Also compute a factor for quadratic scaling if we want to
         # try that
-        quadFactor = ebvBovyMed[iMaxL19] / ebvL19Med[iMaxL19]
+        # quadFactor = ebvBovyMed[iMaxL19] / ebvL19Med[iMaxL19]
+
+    # 2021-04-05 WIC - if we have the planck2d map to hand, then for
+    # the cases where Bovy does not seem to have coverage, scale L19
+    # to the median Planck value.
+    else:
+        if planck2DMed > 0:
+            rvFactor = ebvL19Med[iMaxL19] /planck2DMed
         
     RvScaled = Rv * rvFactor
 
@@ -684,6 +771,10 @@ model.
     ebvBovyLevs = np.percentile(stackBovy, [pctLower, pctUpper],\
                                 axis=0)
 
+    # same for planck2d
+    ebvPlanck2DStd = np.std(stackPlanck2D)
+    ebvPlanck2DLevs = np.percentile(stackPlanck2D, [pctLower, pctUpper])
+    
     ### Now we plot the regions of coverage to the percentile limits,
     ### for the bovy and for the L+19 predictions.
     dumLevsL19 = ax1.fill_between(distsMed, ebvL19Levs[0], ebvL19Levs[1], \
@@ -698,6 +789,10 @@ model.
     dumMedsBovy = ax1.plot(distsMed, ebvBovyMed, color='r', ls='--', \
                            zorder=21, lw=2, label='Bovy median')
 
+    # if we have it, show the levels for planck
+    dumPlanckMed = ax1.axhline(planck2DMed, color='g', ls=':', lw=2, \
+                               label='Planck 2D')
+    
     # Overplot the hybrid EBV curve
     dumHybrid = ax1.plot(distsMed, ebvHybrid, ls='-', color='c', lw=6, \
                          label='Hybrid E(B-V)', zorder=31, alpha=0.5)
@@ -744,23 +839,56 @@ model.
 
     # Show a panel giving the sight lines looked at here. We will want
     # the maximum bovy extinctions for each (since that goes farther):
-    maxBovy = stackBovy[1::,-1] # for our colors, not including the
-                                # central los.
+    maxBovy = stackBovy[1::,-1] # for our colors, not including central
+
+    maxPlanck2D = stackPlanck2D[1::]
+
     
     # debug - what sight lines are we looking at here?
     #fig2 = plt.figure(2, figsize=(3,3))
     #fig2.clf()
     #ax2 = fig1.add_subplot(224)
-    ax2 = fig1.add_subplot(gs[1,2])
-    dumCen = ax2.plot(lCen, bCen, 'm*', ms=20, zorder=1)
-    dumSamp = ax2.scatter(vL, vB, c=maxBovy, zorder=2, cmap='Greys', \
-                          edgecolor='0.5', marker='s', s=25)
-    cbar = fig1.colorbar(dumSamp, ax=ax2, label='E(B-V) (Bovy)')
-    ax2.set_xlabel('l, degrees')
-    ax2.set_ylabel('b, degrees')
-    ax2.grid(which='both', zorder=1, color='0.5', alpha=0.5)
-    ax2.set_title('sight-line samples about %.2f, %.2f' % (lCen, bCen), \
-                  fontsize=9)
+
+    # If we have planck2d as well as bovy, show both. Otherwise don't
+    # show both.
+
+    lAx = [fig1.add_subplot(gs[1,2])]
+    lCo = [maxBovy]
+    lLa = ['E(B-V), Bovy']
+    lGood = [np.isfinite(maxBovy)]
+    vmin = None
+    vmax = None
+    
+    if np.max(stackPlanck2D) > 1e-3:
+        lAx.append(fig1.add_subplot(gs[0,2]))
+        lCo.append(maxPlanck2D)
+        lLa.append('E(B-V), Planck')
+        bPla = maxPlanck2D < planckUpperLim
+        lGood.append(bPla) # was set many lines above.
+        
+        ebvBoth = np.hstack(( maxBovy, maxPlanck2D[bPla] ))
+        vmin = np.min(ebvBoth)
+        vmax = np.max(ebvBoth)
+        
+    for iAx in range(len(lAx)):
+        ax2 = lAx[iAx]
+        vColor = lCo[iAx]
+        labl = lLa[iAx]
+
+        bb = lGood[iAx]
+        
+        #ax2 = fig1.add_subplot(gs[1,2])
+        dumCen = ax2.plot(lCen, bCen, 'm*', ms=20, zorder=1)
+        dumSamp = ax2.scatter(vL[bb], vB[bb], c=vColor[bb], \
+                              zorder=2, cmap='Greys', \
+                              edgecolor='0.5', marker='s', s=49, \
+                              vmin=vmin, vmax=vmax)
+        cbar = fig1.colorbar(dumSamp, ax=ax2, label=labl)
+        ax2.set_xlabel('l, degrees')
+        ax2.set_ylabel('b, degrees')
+        ax2.grid(which='both', zorder=1, color='0.5', alpha=0.5)
+        ax2.set_title('Samples about %.2f, %.2f' % (lCen, bCen), \
+                      fontsize=9)
     # fig2.subplots_adjust(left=0.25, bottom=0.25)
 
     # save the figure to disk
