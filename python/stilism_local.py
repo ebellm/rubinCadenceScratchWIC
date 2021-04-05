@@ -252,7 +252,12 @@ if __name__ == '__main__':
     parser.add_argument('l',type=float)
     parser.add_argument('b',type=float)
     parser.add_argument('dist',type=float)
+    parser.add_argument('-m','--map-version',dest='map_version',choices=['18','19'],type=str, default='19')
+    parser.add_argument('-a','--return-av',dest='returnAv',action='store_true')
+    parser.add_argument('-v','--verbose',action='store_true')
     
     args = parser.parse_args()
     
-    get_ebv_lallement(args.l,args.b,args.dist)
+    lallement = LallementDustMap(args.map_version)
+    ebv = lallement.get_ebv(args.l,args.b,args.dist,returnAv=args.returnAv,Verbose=args.verbose)
+    print(ebv[0][-1])
