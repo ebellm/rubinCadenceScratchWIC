@@ -11,3 +11,4 @@ For info about stilism, particularly the relevant papers and caveats, see here: 
 reports the gradient in E(B-V)). The updated version (which also reports extinction as A_555nm, or roughly A_V), can be found at Vizier: 
 http://cdsarc.unistra.fr/viz-bin/cat/J/A+A/625/A135. Also, The map can be queried for a single line of sight or on a plane using the interface at https://astro.acri-st.fr/gaia_dev/.
 
+2021-04-05 Add class for Lallement's map. Fix issue with map queries due to initial misunderstanding of the grid of the map itself (slightly misaligned).
