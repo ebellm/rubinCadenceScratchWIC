@@ -114,7 +114,7 @@ Bovy et al.
         # volume. Currently the routine in stilism_local returns the
         # boolean and the xyz coords since those are needed for the
         # interpolation. We don't need those quantities here, though.
-        distMax, _, _ = stilism_local.find_max_distance(self.l, self.b, \
+        distMax, _, _ = self.lallementMap.find_max_distance(self.l, self.b, \
                                                         distsFine)
 
         # OK now we set the maximum distance for the "fine" set of the
