@@ -708,21 +708,16 @@ model.
     # we set a minimum (if bovy AT THE COMPARISON POINT is below our
     # threshold minEBV, then we do no scaling).
     rvFactor = 1. # our default: no scaling.
-    quadFactor = 1.
     iMaxL19 = np.argmin(np.abs(distsMed - distCompare))
     if ebvBovyMed[iMaxL19] > minEBV:
         rvFactor = ebvL19Med[iMaxL19] / ebvBovyMed[iMaxL19]
-
-        # Also compute a factor for quadratic scaling if we want to
-        # try that
-        # quadFactor = ebvBovyMed[iMaxL19] / ebvL19Med[iMaxL19]
 
     # 2021-04-05 WIC - if we have the planck2d map to hand, then for
     # the cases where Bovy does not seem to have coverage, scale L19
     # to the median Planck value.
     else:
-        if planck2DMed > 0:
-            rvFactor = ebvL19Med[iMaxL19] /planck2DMed
+        if planck2DMed > 0.:
+            rvFactor = ebvL19Med[iMaxL19] / planck2DMed
         
     RvScaled = Rv * rvFactor
 
@@ -755,7 +750,7 @@ model.
     # if not plotting, return
     if not doPlots:
         if returnValues:
-            return ebvHybrid, distsMed, 1.0
+            return ebvHybrid, distsMed, rvFactor
         else:
             return
         
