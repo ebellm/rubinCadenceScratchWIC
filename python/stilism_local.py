@@ -15,10 +15,8 @@ from scipy import interpolate
 
 class LallementDustMap(object):
     map_path = {'18':'stilism_cube.h5','19':'stilism_cube_2.h5'}
-    EBV2A = {'18': 3.1, '19': 1}
-    A2EBV = {'18': 1, '19': 1/3.1}
 
-    def __init__(self, version='19'):
+    def __init__(self, version='19', Rv=3.1):
         """Initialize Lallement's dust map.
         Beware that the version 2018 of the map has E(B-V) values while the 2019 one has
         A0 values.
@@ -54,6 +52,9 @@ class LallementDustMap(object):
 
         self.rgi = interpolate.RegularGridInterpolator((self.x0, self.y0, self.z0), ebv, \
                                                         bounds_error=False, fill_value=0.)
+
+        self.set_Rv(Rv)
+
         print("Setup complete.")
 
     def find_max_distance(self, l=0, b=0, dists=np.array([])):
@@ -137,17 +138,31 @@ class LallementDustMap(object):
         #    return np.nan, d_interp
         #ebv_interp = rgi(xyz_interp)
         if returnAv:
-            fact = self.EBV2A[self.version]
+            fact = self.fact_EBV2A
             if Verbose:
                 print("Converting map version {} to Av (fact={})".format(self.version,fact))
             Av = np.cumsum(ebv_interp*d_step) * fact
             return Av, d_interp, distMax # it is an E(B-V), must multiply by Rv
 
-        fact = self.A2EBV[self.version]
+        fact = self.fact_A2EBV
         if Verbose:
             print("Converting map version {} to E(B-V) (fact={})".format(self.version,fact))
         ebv = np.cumsum(ebv_interp*d_step) * fact
         return ebv, d_interp, distMax # it is an E(B-V), must multiply by Rv
+
+    def set_Rv(self,newRv):
+        """Update the value of Rv.
+
+        Args:
+            newRv (float]): New value of Rv to use in the conversion of the map.
+        """
+
+        self.Rv = newRv
+        # factor for L19 is 1 because it is already extinction (A0)
+        self.fact_EBV2A = newRv if self.version=='18' else 1
+        # factor for L18 is 1 because it is already color excess (E(B-V))
+        self.fact_A2EBV = 1 if self.version=='18' else 1/newRv
+
 
 def gal_to_xyz(l,b,dist):
     l_rad = math.radians(l)
@@ -255,9 +270,10 @@ if __name__ == '__main__':
     parser.add_argument('-m','--map-version',dest='map_version',choices=['18','19'],type=str, default='19')
     parser.add_argument('-a','--return-av',dest='returnAv',action='store_true')
     parser.add_argument('-v','--verbose',action='store_true')
+    parser.add_argument('-r','--Rv',type=float,default=3.1)
     
     args = parser.parse_args()
     
-    lallement = LallementDustMap(args.map_version)
+    lallement = LallementDustMap(args.map_version,Rv=args.Rv)
     ebv = lallement.get_ebv(args.l,args.b,args.dist,returnAv=args.returnAv,Verbose=args.verbose)
     print(ebv[0][-1])
