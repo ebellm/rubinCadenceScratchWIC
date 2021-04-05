@@ -2,7 +2,7 @@
 
 Random plots resulting from routines in progress.
 
-2021-04-02 to reproduce the one plot currently in this directory, cd to a folder that contains stilism_cube_2.h5 and this version of stilism_local.py, and type
+2021-04-02 to reproduce the single line of sight plot in this folder, cd to a folder that contains stilism_cube_2.h5 and this version of stilism_local.py, and type
 
 ```
 import compareExtinctions

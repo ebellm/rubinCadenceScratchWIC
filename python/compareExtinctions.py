@@ -367,11 +367,12 @@ def hybridSightline(lCen=0., bCen=4., \
 
     """Samples the Bovy et al. and Lallement et al. 2019 E(B-V) vs
     distance maps, constructed as the median E(B-V) vs distance curve
-    over nl x nb samples about the central sight line. Returns a
-    hybrid E(B-V) vs distance curve as E(B-V), distances, if
-    "returnValues" is set.
+    over nl x nb samples about the central sight line. 
 
-    A lightly modified version of Alessandro Mazzi's
+    if "returnValues" is set, this returns the E(B-V), distances,
+    scale factor, and max distance for L19.
+
+    A modified version of Alessandro Mazzi's
     "stilism_local.py" is used to query Lallement et al. 2019.
     
     REQUIREMENTS beyond the standard numpy and matplotlib: 
@@ -385,6 +386,9 @@ def hybridSightline(lCen=0., bCen=4., \
     healpy - must be present on the system (to convert NSIDE into a
     pixel area). If mwdust successfully installed on your system then
     you probably already have this.
+
+    If you want to query Planck in all the sight lines, Gregory
+    Green's "mwdust" is also required.
 
     MORE INFO, ARGUMENTS:
 
@@ -750,7 +754,7 @@ model.
     # if not plotting, return
     if not doPlots:
         if returnValues:
-            return ebvHybrid, distsMed, rvFactor
+            return ebvHybrid, distsMed, rvFactor, distCompare
         else:
             return
         
@@ -875,9 +879,16 @@ model.
         #ax2 = fig1.add_subplot(gs[1,2])
         dumCen = ax2.plot(lCen, bCen, 'm*', ms=20, zorder=1)
         dumSamp = ax2.scatter(vL[bb], vB[bb], c=vColor[bb], \
-                              zorder=2, cmap='Greys', \
+                              zorder=5, cmap='Greys', \
                               edgecolor='0.5', marker='s', s=49, \
                               vmin=vmin, vmax=vmax)
+
+        # show sightlines that failed
+        if np.sum(~bb) > 0:
+            blah = ax2.scatter(vL[~bb], vB[~bb], c='r', \
+                               zorder=1, alpha=0.25, \
+                               marker='x', s=36)
+
         cbar = fig1.colorbar(dumSamp, ax=ax2, label=labl)
         ax2.set_xlabel('l, degrees')
         ax2.set_ylabel('b, degrees')
@@ -891,7 +902,7 @@ model.
         fig1.savefig(figName, overwrite=True)
 
     if returnValues:
-        return ebvHybrid, distsMed, rvFactor
+        return ebvHybrid, distsMed, rvFactor, distCompare
 
 def loopSightlines(nside=64, imin=0, imax=25, \
                    nbins=300, nested=False, \
@@ -926,6 +937,14 @@ def loopSightlines(nside=64, imin=0, imax=25, \
     map_version = version of the L+19 map to send to the sightlines
 
     Rv = Rv needed for the L+19 map object
+
+    ---
+
+    Example call:
+
+    To loop through NSIDE=64 healpix IDs 999-1019:
+
+    compareExtinctions.loopSightlines(64, 999, 1019, reportInterval=10, nl=4, nb=4, fracPix=0.8, nbins=500) 
 
     """
 
@@ -970,8 +989,9 @@ def loopSightlines(nside=64, imin=0, imax=25, \
     ebvs  = np.zeros(shp)
 
     # Let's keep track of the scale factor we used to merge L19 with
-    # Bovy et al:
-    sfacs = np.ones(nSightlines)
+    # Bovy et al, as well as the distance at which the scaling was
+    # done:
+    sfacs = np.ones((nSightlines,2))
 
     # Set up header information for the inevitable serialization. I
     # think astropy has a nice way to do this, for the moment we can
@@ -992,9 +1012,12 @@ def loopSightlines(nside=64, imin=0, imax=25, \
     # We also initialize the Lallement+19 map object
     print("loopSightlines - initializing L19...")
     l19 = stilism_local.LallementDustMap(version=map_version,Rv=Rv)
+
+    print("loopSightlines - starting loops:")
     
     for iHP in range(np.size(hpids)):    
-        ebvsThis, distsThis, rvFactor  \
+        ebvsThis, distsThis, \
+            rvFactor, distCompare  \
             = hybridSightline(0., 0., \
                               nl=nl, nb=nb, \
                               setLimDynamically=False, \
@@ -1016,8 +1039,9 @@ def loopSightlines(nside=64, imin=0, imax=25, \
         # not the hpids themselves):
         dists[iHP] = distsThis
         ebvs[iHP] = ebvsThis
-        sfacs[iHP] = rvFactor
-
+        sfacs[iHP][0] = rvFactor
+        sfacs[iHP][1] = distCompare
+        
         # Write to disk every so often
         if iHP >= reportInterval and iHP % reportInterval < 1:
             writeExtmap(hpids, dists, ebvs, sfacs, \
