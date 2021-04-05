@@ -42,7 +42,8 @@ or can be re-imported here."""
                  distances=np.array([]), \
                  objBovy = None, Rv=3.1, \
                  distMaxCoarsePc = 15000., \
-                 nDistBins = 400):
+                 nDistBins = 400,
+                 map_version='19'):
 
         # Sight line, max distance
         self.l = l
@@ -83,6 +84,9 @@ or can be re-imported here."""
         # extinction evaluates
         self.ebvL19 = np.array([])
         self.ebvBovy = np.array([])
+
+        # the version of LallementDustMap must be either '18' or '19', as string
+        self.lallementMap = stilism_local.LallementDustMap(version=map_version,Rv=Rv)
 
     def generateDistances(self, Verbose=False):
 
@@ -174,14 +178,16 @@ Bovy et al.
         # supply. This leads to an apparently redundant set of
         # keywords in the call.
         l19, dists, distLim \
-            = stilism_local.get_ebv_lallement(self.l, self.b, \
+            = self.lallementMap.get_ebv(self.l, self.b, \
                                               self.distMaxPc, \
                                               self.distMinPc, \
                                               self.distStepPc, \
                                               distances=self.distsPc)
 
         # Pass the l19 values, converted to E(B-V)
-        self.ebvL19 = l19 / self.Rv
+        ## new 2021-04-05: not needed since LallementDustMap handles conversion automatically
+        #self.ebvL19 = l19 / self.Rv
+        self.ebvL19 = l19
         
         # pass the distance array generated to the instance, IF it
         # wasn't already generated.
