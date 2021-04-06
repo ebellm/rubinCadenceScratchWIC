@@ -794,8 +794,8 @@ model.
                            zorder=21, lw=2, label='Bovy median')
 
     # if we have it, show the levels for planck
-    dumPlanckMed = ax1.axhline(planck2DMed, color='g', ls=':', lw=2, \
-                               label='Planck 2D')
+    dumPlanckMed = ax1.axhline(planck2DMed, color='g', ls='-', lw=2, \
+                               label='Planck 2D', alpha=0.7)
     
     # Overplot the hybrid EBV curve
     dumHybrid = ax1.plot(distsMed, ebvHybrid, ls='-', color='c', lw=6, \

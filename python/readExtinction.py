@@ -226,7 +226,8 @@ showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then th
 def testDeltamags(sfilt='r', dmagOne=13., \
                   figName='test_deltamag.png', \
                   cmap='viridis', norm='linear', \
-                  pathMap='merged_ebv3d_nside64.fits'):
+                  pathMap='merged_ebv3d_nside64.fits', \
+                  dmagVec=np.array([])):
 
     """Use the extinction map to find the distance at which a particular
 delta-mag is found. Example call:
@@ -251,7 +252,8 @@ delta-mag is found. Example call:
     # We pretend that we have one target delta-magnitude for every
     # healpix, by replicating our program deltamag into an npix-length
     # array
-    dmagVec = np.repeat(dmagOne, np.shape(mMinusM)[0])
+    if np.size(dmagVec) < 1:
+        dmagVec = np.repeat(dmagOne, np.shape(mMinusM)[0])
     
     # now find the elements in each row that are closest to the
     # requested deltamag
