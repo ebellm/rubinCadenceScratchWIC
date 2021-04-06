@@ -192,7 +192,7 @@ showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then th
                     unit=sUnit, \
                     cmap=cmap, sub=(2,2,iDist+1), \
                     norm='log', margins=margins)
-        print("Changing the colorbar.")
+
         cbar = plt.gca().images[-1].colorbar
         cmin, cmax = cbar.get_clim()
         # The colorbar has log scale, which means that cmin=0 is not valid
@@ -276,6 +276,23 @@ delta-mag is found. Example call:
                 title=sTitle, \
                 unit='Distance (pc)', \
                 cmap=cmap, norm=norm)
+
+    cbar = plt.gca().images[-1].colorbar
+    cmin, cmax = cbar.get_clim()
+    # The colorbar has log scale, which means that cmin=0 is not valid
+    # this should be handled by mollview, if not cmin is replaced by the
+    # smallest non-zero value of the array vecSho
+    if cmin==0:
+        cmin=np.amin(sfilt[sfilt!=0])
+    # Set tick positions and labels
+    cmap_ticks = np.linspace(cmin,cmax,num=5)
+    cbar.set_ticks(cmap_ticks,True)
+    cmap_labels = ["{:5.1f}".format(t) for t in cmap_ticks]
+    cbar.set_ticklabels(cmap_labels)
+    # Change the position of the colorbar label
+    text = [c for c in cbar.ax.get_children() if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
+    print(text.get_position())
+    text.set_y(-3.) # valid for figsize=(8,6)
 
     # show a graticule
     hp.graticule(color='0.2', alpha=0.5)
