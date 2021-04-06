@@ -125,17 +125,24 @@ distance"""
         Rx = self.R_x[sFilt]
         mMinusM = self.dmods[np.newaxis,:] + Rx * self.ebvs
 
-        return mMinusM
+        return mMinusM[0]
         
-def testReadExt(dpc=3000., showExtn=False, sfilt='r'):
+def testReadExt(dpc=3000., showExtn=False, sfilt='r', showDeltamag=False, \
+                figName='test_mapDust.png', \
+                pathMap='merged_ebv3d_nside64.fits'):
 
     """Tests whether we can read the extinction map we just created. If
-showExtn, then the extinction at filter sfilt is shown."""
+showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then the quantity (m-M) is plotted, including extinction. pathMap is the path to the E(B-V) vs distance map. Example call:
 
-    ebv = ebv3d()
+    readExtinction.testReadExt(sfilt='r', showExtn=True, \
+    figName='testmap_Ar.png')
+
+    """
+
+    ebv = ebv3d(pathMap)
     ebv.loadMap()
 
-    print(np.shape(ebv.mask))
+    # print(np.shape(ebv.mask))
     
     # ebvThis, distThis = ebv.getMapNearestDist(dpc)
 
@@ -157,19 +164,28 @@ showExtn, then the extinction at filter sfilt is shown."""
     if showExtn and sfilt in ebv.R_x.keys():
         rx = ebv.R_x[sfilt]
         sUnit = r'A$_%s$, mag' % (sfilt)
-        cmap = 'Greys'
+        # cmap = 'Greys'
         
     dpcs = [252., 1503.5, 4000., 7500.]
     for iDist in range(len(dpcs)):
         ebvThis, distThis = ebv.getMapNearestDist(dpcs[iDist])
 
+        vecSho = ebvThis*rx
+        
+        if showDeltamag and showExtn:
+            dmod = 5.0*np.log10(distThis) - 5.
+            vecSho += dmod
+            sUnit = r'(m-M)$_%s$' % (sfilt)
+            
         # Show the dust map
-        hp.mollview(ebvThis*rx, 2, coord=['C','G'], nest=ebv.nested, \
+        hp.mollview(vecSho, 2, coord=['C','G'], nest=ebv.nested, \
                     title='Requested distance %.1f pc' % (dpcs[iDist]), \
                     unit=sUnit, \
                     cmap=cmap, sub=(2,2,iDist+1), \
                     norm='log')
 
+        hp.graticule(alpha=0.5, color='0.25')
+        
         # show the distance between the nearest distance bin and the
         # requested distance
         #hp.mollview(distThis - dpcs[iDist], 3, \
@@ -179,4 +195,62 @@ showExtn, then the extinction at filter sfilt is shown."""
         #            cmap='RdBu_r', sub=(2,2,iDist+1))
         
     fig2.suptitle('NSIDE=%i' % (ebv.nside))
-    fig2.savefig('test_mapsDists.png')
+    fig2.savefig(figName)
+
+def testDeltamags(sfilt='r', dmagOne=13., \
+                  figName='test_deltamag.png', \
+                  cmap='viridis', norm='linear', \
+                  pathMap='merged_ebv3d_nside64.fits'):
+
+    """Use the extinction map to find the distance at which a particular
+delta-mag is found. Example call:
+
+    Find the distance in parsecs at which (m-M)_i = 15.2, using a
+    stepped colormap until I work out how to add tickmarks to
+    the colorbar...:
+
+
+    readExtinction.testDeltamags('i', 15.2, cmap='Set2', \
+    figName='testmap_delta_i_set1.png')
+
+    """
+
+    ebv = ebv3d(pathMap)
+    ebv.loadMap()
+
+    # for the supplied filter choice, build an (m-M)_x map from the
+    # reddening and the distance moduli
+    mMinusM = ebv.getDeltaMag(sfilt)
+
+    # We pretend that we have one target delta-magnitude for every
+    # healpix, by replicating our program deltamag into an npix-length
+    # array
+    dmagVec = np.repeat(dmagOne, np.shape(mMinusM)[0])
+    
+    # now find the elements in each row that are closest to the
+    # requested deltamag
+    iMin = np.argmin(np.abs(mMinusM - dmagVec[:,np.newaxis]), axis=1)
+    iExpand = np.expand_dims(iMin, axis=-1)
+
+    # print("INFo:", np.shape(mMinusM), np.shape(iMin))
+    # return
+    
+    # get the distances closest to this
+    distsClosest = np.take_along_axis(ebv.dists, \
+                                      iExpand, \
+                                      axis=-1).squeeze()
+
+    fig4=plt.figure(4, figsize=(8,6))
+    fig4.clf()
+    sTitle = r'Distance at $\Delta$%s=%.2f (%s scale)' \
+             % (sfilt, dmagOne, norm)
+    hp.mollview(distsClosest, 4, coord=['C','G'], nest=ebv.nested, \
+                title=sTitle, \
+                unit='Distance (pc)', \
+                cmap=cmap, norm=norm)
+
+    # show a graticule
+    hp.graticule(color='0.2', alpha=0.5)
+
+    fig4.suptitle('NSIDE=%i, Filter:%s' % (ebv.nside, sfilt))
+    fig4.savefig(figName)
