@@ -1,6 +1,9 @@
 # 2021-02-28 This is the saturation stacker written and bugfixed by Peter Yoachim. Pasted here until
 # the updated stacker is available on Datalab and on Sciserver. If rerunning the entire notebook, 
 # you will probably need to restart and clear outputs beforehand.
+
+import lsst.sims.maf.stackers as stackers
+
 class SaturationStacker(stackers.BaseStacker):
     """Calculate the saturation limit of a point source. Assumes Guassian PSF.
     
