@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# possibly large fits files
+*.fits
+
 # C extensions
 *.so
 
