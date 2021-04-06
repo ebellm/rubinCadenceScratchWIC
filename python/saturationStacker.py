@@ -3,6 +3,7 @@
 # you will probably need to restart and clear outputs beforehand.
 
 import lsst.sims.maf.stackers as stackers
+import numpy as np
 
 class SaturationStacker(stackers.BaseStacker):
     """Calculate the saturation limit of a point source. Assumes Guassian PSF.
