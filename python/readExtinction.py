@@ -8,13 +8,16 @@
 #
 
 import os
+import math
 import numpy as np
 
 import healpy as hp
 from astropy.io import fits
 
 # matplotlib methods
+import matplotlib
 import matplotlib.pylab as plt
+from matplotlib.ticker import LogLocator
 plt.ion()
 
 class ebv3d(object):
@@ -158,6 +161,12 @@ showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then th
     # fig3=plt.figure(3, figsize=(7,7))
     # fig3.clf()
 
+    # Must change the margins, the default ones are too thin and text
+    # overflows from the image
+    # follow the scheme -> (left,bottom,right,top)
+    # margins = (0.075, 0.075, 0.075, 0.05) # from mollview function
+    margins = (0.0, 0.02, 0.00, 0.02) # valid for figsize=(14,8)
+
     rx = 1.
     sUnit = 'E(B-V), mag'
     cmap='plasma_r'
@@ -182,7 +191,24 @@ showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then th
                     title='Requested distance %.1f pc' % (dpcs[iDist]), \
                     unit=sUnit, \
                     cmap=cmap, sub=(2,2,iDist+1), \
-                    norm='log')
+                    norm='log', margins=margins)
+        print("Changing the colorbar.")
+        cbar = plt.gca().images[-1].colorbar
+        cmin, cmax = cbar.get_clim()
+        # The colorbar has log scale, which means that cmin=0 is not valid
+        # this should be handled by mollview, if not cmin is replaced by the
+        # smallest non-zero value of the array vecSho
+        if cmin==0:
+            cmin=np.amin(vecSho[vecSho!=0])
+        # Set tick positions and labels
+        cmap_ticks = np.logspace(math.log10(cmin),math.log10(cmax),num=5)
+        cbar.set_ticks(cmap_ticks,True)
+        cmap_labels = ["{:4.3g}".format(t) for t in cmap_ticks]
+        cbar.set_ticklabels(cmap_labels)
+        # Change the position of the colorbar label
+        text = [c for c in cbar.ax.get_children() if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
+        print(text.get_position())
+        text.set_y(-2.5) # valid for figsize=(14,8)
 
         hp.graticule(alpha=0.5, color='0.25')
         
