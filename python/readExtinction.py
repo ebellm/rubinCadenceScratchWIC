@@ -219,7 +219,7 @@ showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then th
         #            title='Requested distance %.1f pc' % (dpcs[iDist]), \
         #            unit='Distance - requested, pc', \
         #            cmap='RdBu_r', sub=(2,2,iDist+1))
-        
+
     fig2.suptitle('NSIDE=%i' % (ebv.nside))
     fig2.savefig(figName)
 
@@ -285,10 +285,11 @@ delta-mag is found. Example call:
     if cmin==0:
         cmin=np.amin(sfilt[sfilt!=0])
     # Set tick positions and labels
-    cmap_ticks = np.linspace(cmin,cmax,num=5)
+    cmap_ticks = np.linspace(cmin,cmax,num=9)
     cbar.set_ticks(cmap_ticks,True)
-    cmap_labels = ["{:5.1f}".format(t) for t in cmap_ticks]
+    cmap_labels = ["{:5.0f}".format(t) for t in cmap_ticks]
     cbar.set_ticklabels(cmap_labels)
+    cbar.ax.tick_params(labelsize=10) 
     # Change the position of the colorbar label
     text = [c for c in cbar.ax.get_children() if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
     print(text.get_position())
