@@ -1153,7 +1153,7 @@ individual files.
     hpidsMaster = np.arange(npix)
     distsMaster = np.zeros((npix, nbins))
     ebvsMaster = np.zeros((npix, nbins))
-    sfacsMaster = np.zeros((npix))
+    sfacsMaster = np.zeros((npix, 2))
     maskMaster = np.ones((npix, nbins), dtype='uint')
 
     # OK now we slot in the various pieces
