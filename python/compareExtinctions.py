@@ -698,7 +698,7 @@ model.
 
     # Use max distance provided by the user if required. 
     usemaxdist = False
-    if 0<dmaxL19<losCen.distLimPc:
+    if 0<=dmaxL19<losCen.distLimPc:
         print("Using user provided max distance for L+19.")
         distCompare = dmaxL19
         usemaxdist=True
@@ -709,7 +709,7 @@ model.
         if ebvBovyMed.sum()!=0:
             distCompare = 0
         # else use the full extent of the profile
-    else:
+    elif dmaxL19<0:
         raise NotImplemented("The value of dmax has to be either -1 or >=0, currently {}.".format(dmaxL19))
     
     if usemaxdist and doPlots:
