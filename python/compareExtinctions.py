@@ -750,7 +750,7 @@ model.
     # the cases where Bovy does not seem to have coverage, scale L19
     # to the median Planck value.
     else:
-        if planck2DMed > 0.:
+        if planck2DMed > 0. and distCompare > 0:
             rvFactor = ebvL19Med[iMaxL19] / planck2DMed
         
     RvScaled = Rv * rvFactor
