@@ -246,7 +246,7 @@ dustmaps is present."""
         # developed, it should be quick to generate one here.
         coo = SkyCoord(self.l*u.deg, self.b*u.deg, frame='galactic')
         self.planckValue = PLANCK_2D(coo)
-        
+
     def showLos(self, ax=None, alpha=1.0, lw=1, zorder=5, \
                 noLabel=False, \
                 showPoints=False):
@@ -365,7 +365,7 @@ def hybridSightline(lCen=0., bCen=4., \
                     distancesPc = np.array([]), \
                     hpid=-1, nested=False, \
                     objBovy=None, \
-                    objL19=None, \
+                    objL19=None, dmaxL19=1e6,\
                     versionL19='19', \
                     planckMap=None, \
                     planckUpperLim = 10.):
@@ -478,6 +478,10 @@ model.
     objL19 = Lallement et al. map object. Defaults to None and is
     re-initialized in this method using the Rv and versionL19
     arguments
+
+    dmaxL19 = Maximum distance for Lallement et al. profile. Defaults
+    to a very large number so the profile up to the intrinsic maximum
+    distance of the map is used.
 
     planckMap = healpix 2d map of Planck E(B-V) predictions. Ignored
     if the query coords were not healpix, OR if Green's "dustmaps" is
@@ -596,7 +600,7 @@ model.
     losCen.getLallementEBV()
     losCen.getBovyEBV()
     losCen.getPlanck2D()
-    
+
     # Set up a figure...
     if doPlots:
         fig1 = plt.figure(1, figsize=(12,6))
@@ -690,7 +694,16 @@ model.
 
     # We set a default comparison point: some fraction of the maximum
     # distance along this sight line for which we have the L+19 model.
-    distCompare = losCen.distLimPc * distFrac
+    # However, if the 
+    usemaxdist = False
+    if dmaxL19<losCen.distLimPc:
+        print("Using user provided max distance for L+19.")
+        distCompare = dmaxL19
+        usemaxdist=True
+        if doPlots:
+            ax1.axvline(dmaxL19,color='r',linestyle='dotted',label='dmaxL19')
+    else:
+        distCompare = losCen.distLimPc * distFrac
 
     # We can also try to set the decision distance dynamically. Here I
     # find all the distances for which the L+19 extinction is within
@@ -698,7 +711,7 @@ model.
     # the maximum distance for which the two sets are this close. If
     # that distance is less than some cutoff ("minDistL19") then the
     # dynamically estimated max distance is discarded.
-    if setLimDynamically:
+    if setLimDynamically and not usemaxdist:
         bNear = (distsMed <= losCen.distLimPc) & \
                 (ebvL19Med > 0) & (ebvBovyMed > 0 ) & \
                 (np.abs(ebvBovyMed / ebvL19Med - 1.0) < diffRatioMin)
