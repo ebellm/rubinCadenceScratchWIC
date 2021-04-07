@@ -246,7 +246,7 @@ dustmaps is present."""
         # developed, it should be quick to generate one here.
         coo = SkyCoord(self.l*u.deg, self.b*u.deg, frame='galactic')
         self.planckValue = PLANCK_2D(coo)
-        
+
     def showLos(self, ax=None, alpha=1.0, lw=1, zorder=5, \
                 noLabel=False, \
                 showPoints=False):
@@ -365,7 +365,7 @@ def hybridSightline(lCen=0., bCen=4., \
                     distancesPc = np.array([]), \
                     hpid=-1, nested=False, \
                     objBovy=None, \
-                    objL19=None, \
+                    objL19=None, dmaxL19=1e6,\
                     versionL19='19', \
                     planckMap=None, \
                     planckUpperLim = 10.):
@@ -478,6 +478,12 @@ model.
     objL19 = Lallement et al. map object. Defaults to None and is
     re-initialized in this method using the Rv and versionL19
     arguments
+
+    dmaxL19 = Maximum distance for Lallement et al. profile. Defaults
+    to a very large number so the profile up to the intrinsic maximum
+    distance of the map is used. Setting to zero disables Lallement's map.
+    Setting instead to -1 will use Bovy alone if non-zero for the line
+    of sight, otherwise only Lallement.
 
     planckMap = healpix 2d map of Planck E(B-V) predictions. Ignored
     if the query coords were not healpix, OR if Green's "dustmaps" is
@@ -596,7 +602,7 @@ model.
     losCen.getLallementEBV()
     losCen.getBovyEBV()
     losCen.getPlanck2D()
-    
+
     # Set up a figure...
     if doPlots:
         fig1 = plt.figure(1, figsize=(12,6))
@@ -692,13 +698,32 @@ model.
     # distance along this sight line for which we have the L+19 model.
     distCompare = losCen.distLimPc * distFrac
 
+    # Use max distance provided by the user if required. 
+    usemaxdist = False
+    if 0<=dmaxL19<losCen.distLimPc:
+        print("Using user provided max distance for L+19.")
+        distCompare = dmaxL19
+        usemaxdist=True
+    elif dmaxL19==-1:
+        # Specify that distance should not be changed by other operations
+        usemaxdist=True
+        # Do not use Lallement if Bovy has non-zero values
+        if ebvBovyMed.sum()!=0:
+            distCompare = 0
+        # else use the full extent of the profile
+    elif dmaxL19<0:
+        raise NotImplemented("The value of dmax has to be either -1 or >=0, currently {}.".format(dmaxL19))
+    
+    if usemaxdist and doPlots:
+        ax1.axvline(distCompare,color='r',linestyle='dotted',label='dmaxL19')
+
     # We can also try to set the decision distance dynamically. Here I
     # find all the distances for which the L+19 extinction is within
     # fraction "diffRatioMin" of the Bovy et al. extinction, and find
     # the maximum distance for which the two sets are this close. If
     # that distance is less than some cutoff ("minDistL19") then the
     # dynamically estimated max distance is discarded.
-    if setLimDynamically:
+    if setLimDynamically and not usemaxdist:
         bNear = (distsMed <= losCen.distLimPc) & \
                 (ebvL19Med > 0) & (ebvBovyMed > 0 ) & \
                 (np.abs(ebvBovyMed / ebvL19Med - 1.0) < diffRatioMin)
@@ -725,7 +750,7 @@ model.
     # the cases where Bovy does not seem to have coverage, scale L19
     # to the median Planck value.
     else:
-        if planck2DMed > 0.:
+        if planck2DMed > 0. and distCompare > 0:
             rvFactor = ebvL19Med[iMaxL19] / planck2DMed
         
     RvScaled = Rv * rvFactor
@@ -741,12 +766,26 @@ model.
     # ebvL19scaled = quadFactor * ebvL19Med**2
     
     #ebvHybrid[b19] = ebvL19Med[b19]/rvFactor
-    ebvHybrid[b19] = ebvL19scaled[b19]
-    
     bBovBad = ebvHybrid < minEBV
-    # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
-    ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
+    if dmaxL19==-1:
+        # Only use Lallement if Bovy is zero
+        # distCompare is non-zero if Bovy is zero, use only Lallement
+        if distCompare!=0:
+            ebvHybrid = ebvL19Med
+        if len(bBovBad)>0:
+            print(("compareExtinctions.hybridSightline warning - Values in the E(B-V) "
+                  "Bovy profile are smaller than the requested minimum ."))
+        # If distCompare is zero, Bovy is non-zero and will be the only profile used
+    else:
+        if distCompare>0:
+            ebvHybrid[b19] = ebvL19scaled[b19]
+        
+            # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
+            ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
     
+    if np.all(ebvHybrid==0):
+        print("compareExtinctions.hybridSightline warning - The E(B-V) profile is zero everywhere!")
+
     if tellTime:
         t2 = time.time()
         dtBovy = t1 - t0
