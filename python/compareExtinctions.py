@@ -694,16 +694,26 @@ model.
 
     # We set a default comparison point: some fraction of the maximum
     # distance along this sight line for which we have the L+19 model.
-    # However, if the 
+    distCompare = losCen.distLimPc * distFrac
+
+    # Use max distance provided by the user if required. 
     usemaxdist = False
-    if dmaxL19<losCen.distLimPc:
+    if 0<dmaxL19<losCen.distLimPc:
         print("Using user provided max distance for L+19.")
         distCompare = dmaxL19
         usemaxdist=True
-        if doPlots:
-            ax1.axvline(dmaxL19,color='r',linestyle='dotted',label='dmaxL19')
+    elif dmaxL19==-1:
+        # Specify that distance should not be changed by other operations
+        usemaxdist=True
+        # Do not use Lallement if Bovy has non-zero values
+        if ebvBovyMed.sum()!=0:
+            distCompare = 0
+        # else use the full extent of the profile
     else:
-        distCompare = losCen.distLimPc * distFrac
+        raise NotImplemented("The value of dmax has to be either -1 or >=0, currently {}.".format(dmaxL19))
+    
+    if usemaxdist and doPlots:
+        ax1.axvline(distCompare,color='r',linestyle='dotted',label='dmaxL19')
 
     # We can also try to set the decision distance dynamically. Here I
     # find all the distances for which the L+19 extinction is within
@@ -754,11 +764,18 @@ model.
     # ebvL19scaled = quadFactor * ebvL19Med**2
     
     #ebvHybrid[b19] = ebvL19Med[b19]/rvFactor
-    ebvHybrid[b19] = ebvL19scaled[b19]
+    if dmaxL19==-1:
+        # Only use Lallement if Bovy is zero
+        # distCompare is non-zero if Bovy is zero, use only Lallement
+        if distCompare!=0:
+            ebvHybrid = ebvL19Med
+        # If distCompare is zero, Bovy is non-zero and will be the only profile used
+    else:
+        ebvHybrid[b19] = ebvL19scaled[b19]
     
-    bBovBad = ebvHybrid < minEBV
-    # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
-    ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
+        bBovBad = ebvHybrid < minEBV
+        # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
+        ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
     
     if tellTime:
         t2 = time.time()
