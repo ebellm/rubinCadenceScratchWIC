@@ -783,6 +783,9 @@ model.
             # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
             ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
     
+    if np.all(ebvHybrid==0):
+        print("compareExtinctions.hybridSightline warning - The E(B-V) profile is zero everywhere!")
+
     if tellTime:
         t2 = time.time()
         dtBovy = t1 - t0
