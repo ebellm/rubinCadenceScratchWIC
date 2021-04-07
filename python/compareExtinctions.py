@@ -481,7 +481,9 @@ model.
 
     dmaxL19 = Maximum distance for Lallement et al. profile. Defaults
     to a very large number so the profile up to the intrinsic maximum
-    distance of the map is used.
+    distance of the map is used. Setting to zero disables Lallement's map.
+    Setting instead to -1 will use Bovy alone if non-zero for the line
+    of sight, otherwise only Lallement.
 
     planckMap = healpix 2d map of Planck E(B-V) predictions. Ignored
     if the query coords were not healpix, OR if Green's "dustmaps" is
