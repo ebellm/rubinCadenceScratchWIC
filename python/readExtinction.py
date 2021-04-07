@@ -129,8 +129,41 @@ distance"""
         mMinusM = self.dmods[np.newaxis,:] + Rx * self.ebvs
 
         return mMinusM[0]
+
+    def showDistanceInterval(self, fignum=5, cmap='viridis'):
+
+        """Utility - shows the map of distance resolutions for close and far
+points. Currently this just uses the difference betweeh bin 1 and 0 as
+the bin spacing for L+19, and between bins -2 and -1 for the bovy et
+al. spacing.
+
+        """
+
+        ddistClose = self.dists[:,1] - self.dists[:,0]
+        ddistFar = self.dists[:,-1] - self.dists[:,-2]
+
+        fig5=plt.figure(fignum, figsize=(10,3))
+        fig5.clf()
+
+        # set the margins
+        margins = (0.02, 0.05, 0.05, 0.00)
+                
+        hp.mollview(ddistClose, fignum, coord=['C','G'], \
+                    nest=self.nested, \
+                    title='Nearest distance bin width, pc', \
+                    unit=r'$\Delta d$, pc', \
+                    cmap=cmap, sub=(1,2,1), \
+                    margins=margins)
+
+        hp.mollview(ddistFar, fignum, coord=['C','G'], \
+                    nest=self.nested, \
+                    title='Farthest distance bin width, pc', \
+                    unit=r'$\Delta d$, pc', \
+                    cmap=cmap, sub=(1,2,2), \
+                    margins=margins)
+
         
-def testReadExt(dpc=3000., showExtn=False, sfilt='r', showDeltamag=False, \
+def testReadExt(showExtn=False, sfilt='r', showDeltamag=False, \
                 figName='test_mapDust.png', \
                 pathMap='merged_ebv3d_nside64.fits'):
 
@@ -300,3 +333,11 @@ delta-mag is found. Example call:
 
     fig4.suptitle('NSIDE=%i, Filter:%s' % (ebv.nside, sfilt))
     fig4.savefig(figName)
+
+def testShowDistresol(pathMap='merged_ebv3d_nside64.fits'):
+
+    """Test our method to show the distance resolution"""
+
+    ebv=ebv3d(pathMap)
+    ebv.loadMap()
+    ebv.showDistanceInterval()
