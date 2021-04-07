@@ -777,10 +777,11 @@ model.
                   "Bovy profile are smaller than the requested minimum ."))
         # If distCompare is zero, Bovy is non-zero and will be the only profile used
     else:
-        ebvHybrid[b19] = ebvL19scaled[b19]
-    
-        # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
-        ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
+        if distCompare>0:
+            ebvHybrid[b19] = ebvL19scaled[b19]
+        
+            # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
+            ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
     
     if tellTime:
         t2 = time.time()
