@@ -766,16 +766,19 @@ model.
     # ebvL19scaled = quadFactor * ebvL19Med**2
     
     #ebvHybrid[b19] = ebvL19Med[b19]/rvFactor
+    bBovBad = ebvHybrid < minEBV
     if dmaxL19==-1:
         # Only use Lallement if Bovy is zero
         # distCompare is non-zero if Bovy is zero, use only Lallement
         if distCompare!=0:
             ebvHybrid = ebvL19Med
+        if len(bBovBad)>0:
+            print(("compareExtinctions.hybridSightline warning - Values in the E(B-V) "
+                  "Bovy profile are smaller than the requested minimum ."))
         # If distCompare is zero, Bovy is non-zero and will be the only profile used
     else:
         ebvHybrid[b19] = ebvL19scaled[b19]
     
-        bBovBad = ebvHybrid < minEBV
         # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
         ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
     
