@@ -130,6 +130,102 @@ distance"""
 
         return mMinusM[0]
 
+    def getDistanceAtMag(self, deltamag=15.2, sfilt='r'):
+
+        """Returns the distances at which the combination of distance and
+extinction produces
+
+        """
+
+        # A little bit of parsing... if deltamag is a scalar,
+        # replicate it into an array. Otherwise just reference the
+        # array that was passed in. For the moment, trust the user to
+        # have inputted a deltamag vector of the right shape.
+        npix = self.ebvs.shape[0]
+        if np.isscalar(deltamag):
+            dmagVec = np.repeat(deltamag, npix)
+        else:
+            dmagVec = deltamag
+
+        if np.size(dmagVec) != npix:
+            print("ebv3d.getDistanceAtMag WARN - size mismatch:", \
+                  npix, np.shape(dmagVec))
+            return
+
+        # Now we need apparent minus absolute magnitude:
+        mMinusM = self.getDeltaMag(sfilt)
+
+        # Now we find elements in each row that are closest to the
+        # requested deltamag:
+        iMin = np.argmin(np.abs(mMinusM - dmagVec[:,np.newaxis]), axis=1)
+        iExpand = np.expand_dims(iMin, axis=-1)
+
+        # now find the closest distance...
+        distsClosest = np.take_along_axis(self.dists, \
+                                          iExpand, \
+                                          axis=-1).squeeze()
+
+
+        # ... Let's return both the closest distances and the map of
+        # (m-M), since the user might want both.
+        return distsClosest, mMinusM
+
+    def showMollview(self, hparr=np.array([]), fignum=4, \
+                     subplot=(1,1,1), figsize=(8,6),\
+                     cmap='Set2', numTicks=9, \
+                     clobberFigure=True, \
+                     sTitle='TEST', sUnit='TEST UNIT', \
+                     sSuptitle='TEST SUPTITLE', \
+                     coord=['C','G'], norm='linear', \
+                     gratColor='0.2', gratAlpha=0.5):
+
+
+        """Plot mollweide view using customized colorbar ticks. Returns the
+figure as an object. TODO - fix the margins."""
+
+        # Is the input sensible?
+        if np.size(hparr) != hp.nside2npix(self.nside):
+            return None
+
+        fig = plt.figure(fignum, figsize=figsize)
+        if clobberFigure:
+            fig.clf()
+
+        hp.mollview(hparr, fignum, coord=coord, nest=self.nested, \
+                    sub=subplot, \
+                    title=sTitle, unit=sUnit, cmap=cmap, norm=norm)
+
+        # Now we use Alessandro's nice method for handling the
+        # colorbar:
+        cbar =  plt.gca().images[-1].colorbar
+        cmin, cmax = cbar.get_clim()
+
+        # The colorbar has log scale, which means that cmin=0 is not valid
+        # this should be handled by mollview, if not cmin is replaced by the
+        # smallest non-zero value of the array vecSho
+        if cmin==0:
+            cmin=np.amin(sfilt[sfilt!=0])
+        # Set tick positions and labels
+        cmap_ticks = np.linspace(cmin,cmax,num=numTicks)
+        cbar.set_ticks(cmap_ticks,True)
+        cmap_labels = ["{:5.0f}".format(t) for t in cmap_ticks]
+        cbar.set_ticklabels(cmap_labels)
+        cbar.ax.tick_params(labelsize=10) 
+        # Change the position of the colorbar label
+        text = [c for c in cbar.ax.get_children() \
+                if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
+        print(text.get_position())
+        text.set_y(-3.) # valid for figsize=(8,6)
+
+        # now show a graticule
+        hp.graticule(color=gratColor, alpha=gratAlpha)
+
+        # set supertitle if set
+        if len(sSuptitle) > 0:
+            fig.suptitle(sSuptitle)
+
+        return fig
+            
     def showDistanceInterval(self, fignum=5, cmap='viridis'):
 
         """Utility - shows the map of distance resolutions for close and far
@@ -260,15 +356,23 @@ def testDeltamags(sfilt='r', dmagOne=13., \
                   figName='test_deltamag.png', \
                   cmap='viridis', norm='linear', \
                   pathMap='merged_ebv3d_nside64.fits', \
-                  dmagVec=np.array([])):
+                  dmagVec=np.array([]), testMethod=False, \
+                  testFigureMethod=False):
 
     """Use the extinction map to find the distance at which a particular
-delta-mag is found. Example call:
+delta-mag is found.
+
+    2021-03-07 new arguments: 
+
+    testMethod: tests using the method in object ebv3d to find the distance. Currently defaults to False so that the notebooks on the repository will work.
+
+    testFigureMethod: tests using the method inside the object to show a healpy mollview. Currently defaults to False so that hte notebook on the repository will work.
+
+    Example call:
 
     Find the distance in parsecs at which (m-M)_i = 15.2, using a
     stepped colormap until I work out how to add tickmarks to
     the colorbar...:
-
 
     readExtinction.testDeltamags('i', 15.2, cmap='Set2', \
     figName='testmap_delta_i_set1.png')
@@ -278,29 +382,39 @@ delta-mag is found. Example call:
     ebv = ebv3d(pathMap)
     ebv.loadMap()
 
-    # for the supplied filter choice, build an (m-M)_x map from the
-    # reddening and the distance moduli
-    mMinusM = ebv.getDeltaMag(sfilt)
-
-    # We pretend that we have one target delta-magnitude for every
-    # healpix, by replicating our program deltamag into an npix-length
-    # array
-    if np.size(dmagVec) < 1:
-        dmagVec = np.repeat(dmagOne, np.shape(mMinusM)[0])
+    if not testMethod:
     
-    # now find the elements in each row that are closest to the
-    # requested deltamag
-    iMin = np.argmin(np.abs(mMinusM - dmagVec[:,np.newaxis]), axis=1)
-    iExpand = np.expand_dims(iMin, axis=-1)
+        # for the supplied filter choice, build an (m-M)_x map from the
+        # reddening and the distance moduli
+        mMinusM = ebv.getDeltaMag(sfilt)
 
-    # print("INFo:", np.shape(mMinusM), np.shape(iMin))
-    # return
+        # We pretend that we have one target delta-magnitude for every
+        # healpix, by replicating our program deltamag into an npix-length
+        # array
+        if np.size(dmagVec) < 1:
+            dmagVec = np.repeat(dmagOne, np.shape(mMinusM)[0])
     
-    # get the distances closest to this
-    distsClosest = np.take_along_axis(ebv.dists, \
-                                      iExpand, \
-                                      axis=-1).squeeze()
+        # now find the elements in each row that are closest to the
+        # requested deltamag
+        iMin = np.argmin(np.abs(mMinusM - dmagVec[:,np.newaxis]), axis=1)
+        iExpand = np.expand_dims(iMin, axis=-1)
 
+        # print("INFo:", np.shape(mMinusM), np.shape(iMin))
+        # return
+    
+        # get the distances closest to this
+        distsClosest = np.take_along_axis(ebv.dists, \
+                                          iExpand, \
+                                          axis=-1).squeeze()
+    else:
+        distsClosest, mMinusM = ebv.getDistanceAtMag(dmagOne, sfilt)
+
+
+    if testFigureMethod:
+        figThis = ebv.showMollview(distsClosest, 4, cmap=cmap, norm=norm, \
+                                   coord=['C','G'], sUnit='Distance (pc)')
+        return
+        
     fig4=plt.figure(4, figsize=(8,6))
     fig4.clf()
     sTitle = r'Distance at $\Delta$%s=%.2f (%s scale)' \
