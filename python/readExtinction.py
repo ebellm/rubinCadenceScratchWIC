@@ -15,7 +15,7 @@ import healpy as hp
 from astropy.io import fits
 
 # For querying a particular sight line
-from astropy.coord import SkyCoord
+from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 # matplotlib methods
