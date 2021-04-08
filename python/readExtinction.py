@@ -129,10 +129,11 @@ distance"""
     def getEBVatSightline(self, l=0., b=0., ebvMap=np.array([])):
         
         """Utility - returns E(B-V) at a single distance at a single
-        sight-line"""
+        sight-line. Also returns the nearest coords to the requested
+        coords for debug purposes."""
 
         if np.size(ebvMap) < 1:
-            return 0.
+            return 0., -99., -99.
 
         # find the coords on the sky of the requested sight line, and
         # convert this to healpix
@@ -142,7 +143,14 @@ distance"""
                               coo.icrs.ra.deg, coo.icrs.dec.deg, \
                               nest=self.nested, lonlat=True)
 
-        return ebvMap[hpid]
+        # For debugging: determine the coordinates at this nearest pixel
+        raTest, decTest = hp.pix2ang(self.nside, hpid, \
+                                         nest=self.nested, lonlat=True)
+        cooTest = SkyCoord(raTest*u.deg, decTest*u.deg, frame='icrs')
+        lTest = cooTest.galactic.l.degree
+        bTest = cooTest.galactic.b.degree
+
+        return ebvMap[hpid], lTest, bTest
 
     def getDeltaMag(self, sFilt='r'):
 
@@ -551,6 +559,9 @@ def testGetOneSightline(l=0., b=0., dpc=3000., \
 
     # Now we've obtained the map at a given distance, we can query
     # particular sight-lines. Let's try the coords requested
-    ebvHere = ebv.getEBVatSightline(l, b, ebvs)
+    ebvHere, lTest, bTest = ebv.getEBVatSightline(l, b, ebvs)
     print("Info: E(B-V) at (l,b) nearest to (%.2f, %.2f) is %.2f" \
               % (l, b, ebvHere))
+
+    print("Info: nearest Galactic coords to requested position: %.2f, %.2f" \
+              % (lTest, bTest))
