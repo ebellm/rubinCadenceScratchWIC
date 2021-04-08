@@ -171,20 +171,53 @@ extinction produces
         return distsClosest, mMinusM
 
     def showMollview(self, hparr=np.array([]), fignum=4, \
-                     subplot=(1,1,1), figsize=(8,6),\
+                     subplot=(1,1,1), figsize=(10,6),\
                      cmap='Set2', numTicks=9, \
                      clobberFigure=True, \
-                     sTitle='TEST', sUnit='TEST UNIT', \
-                     sSuptitle='TEST SUPTITLE', \
+                     sTitle='', sUnit='TEST UNIT', \
+                     sSuptitle='', \
                      coord=['C','G'], norm='linear', \
-                     gratColor='0.2', gratAlpha=0.5):
+                     gratColor='0.2', gratAlpha=0.5, \
+                     margins=(0.05, 0.05, 0.05, 0.05) ):
 
 
         """Plot mollweide view using customized colorbar ticks. Returns the
-figure as an object. TODO - fix the margins."""
+figure. Arguments:
 
+        hparr = healpix array to show
+
+        fignum = matplotlib figure number
+
+        subplot = subplot string for figure. Default (1,1,1)
+
+        figsize = figure size
+
+        cmap = colornam
+
+        nticks = number of ticks to use (TODO: set this from the
+        colornap)
+
+        """
+
+        # the number of ticks and fontsize are overridden with
+        # defaults if the colormap is one of the set below.
+        labelsize = 10
+        Dnticks = {'Set1':10, 'Set2':9, 'Set3':13, 'tab10':11, \
+                   'Paired':13, 'Pastel2':9, 'Pastel1':10, \
+                   'Accent':9, 'Dark2':10}
+        Dlsize =  {'Set1':9,  'Set2':10, 'Set3':7.5, 'tab10':9, \
+                   'Paired':7.5, 'Pastel2':9, 'Pastel1':9, \
+                   'Accent':9, 'Dark2':9}
+
+        # Set the number of ticks and the fontsize, allowing for
+        # reversed colormaps
+        cmapStem = cmap.split('_r')[0]
+        if cmapStem in Dnticks.keys():
+            numTicks = Dnticks[cmapStem]
+            labelsize = Dlsize[cmapStem]
+        
         # Is the input sensible?
-        if np.size(hparr) != hp.nside2npix(self.nside):
+        if np.size(hparr) < 1:
             return None
 
         fig = plt.figure(fignum, figsize=figsize)
@@ -193,7 +226,8 @@ figure as an object. TODO - fix the margins."""
 
         hp.mollview(hparr, fignum, coord=coord, nest=self.nested, \
                     sub=subplot, \
-                    title=sTitle, unit=sUnit, cmap=cmap, norm=norm)
+                    title=sTitle, unit=sUnit, cmap=cmap, norm=norm, \
+                    margins=margins)
 
         # Now we use Alessandro's nice method for handling the
         # colorbar:
@@ -210,7 +244,7 @@ figure as an object. TODO - fix the margins."""
         cbar.set_ticks(cmap_ticks,True)
         cmap_labels = ["{:5.0f}".format(t) for t in cmap_ticks]
         cbar.set_ticklabels(cmap_labels)
-        cbar.ax.tick_params(labelsize=10) 
+        cbar.ax.tick_params(labelsize=labelsize) 
         # Change the position of the colorbar label
         text = [c for c in cbar.ax.get_children() \
                 if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
