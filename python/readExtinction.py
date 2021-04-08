@@ -24,6 +24,10 @@ import matplotlib.pylab as plt
 from matplotlib.ticker import LogLocator
 plt.ion()
 
+# Turn the matplotlib version into a float
+MATPLOTLIB_VERSION_FLOAT = \
+    float('%s%s' % (matplotlib.__version__[0:3], matplotlib.__version__[3::].replace('.','')))
+
 class ebv3d(object):
 
     """Object to hold and manipulate a merged 3d extinction map generated
@@ -254,7 +258,7 @@ figure. Arguments:
         # Now we use Alessandro's nice method for handling the
         # colorbar:
         cbar =  plt.gca().images[-1].colorbar
-        cmin, cmax = cbar.get_clim()
+        cmin, cmax = getColorbarLimits(cbar)
 
         # The colorbar has log scale, which means that cmin=0 is not valid
         # this should be handled by mollview, if not cmin is replaced by the
@@ -314,7 +318,19 @@ al. spacing.
                     cmap=cmap, sub=(1,2,2), \
                     margins=margins)
 
-    
+###
+def getColorbarlimits(cbar=None):
+
+    """Gets the colorbar limits for matplotlib colorbar, respecting
+    the matplotlib version"""
+
+    if cbar is None:
+        return 0., 1.
+
+    if MATPLOTLIB_VERSION_FLOAT < 3.3:
+        return cbar.get_clim()
+    else:
+        return cbar.mappable.get_clim()
 
 def testReadExt(showExtn=False, sfilt='r', showDeltamag=False, \
                 figName='test_mapDust.png', \
@@ -387,7 +403,7 @@ showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then th
                     norm=norm, margins=margins)
 
         cbar = plt.gca().images[-1].colorbar
-        cmin, cmax = cbar.get_clim()
+        cmin, cmax = getColorbarLimits(cbar)
         # The colorbar has log scale, which means that cmin=0 is not valid
         # this should be handled by mollview, if not cmin is replaced by the
         # smallest non-zero value of the array vecSho
@@ -489,7 +505,7 @@ delta-mag is found.
                 cmap=cmap, norm=norm)
 
     cbar = plt.gca().images[-1].colorbar
-    cmin, cmax = cbar.get_clim()
+    cmin, cmax = getColorbarLimits(cbar)
     # The colorbar has log scale, which means that cmin=0 is not valid
     # this should be handled by mollview, if not cmin is replaced by the
     # smallest non-zero value of the array vecSho
