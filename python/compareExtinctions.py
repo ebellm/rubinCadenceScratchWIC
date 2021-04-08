@@ -1,10 +1,10 @@
 #
 # compareExtinctions.py
 #
+ 
+# Authors: Will Clarkson (UM-Dearborn) and Alessandro Mazzi (INAF)
 
-# Started 2021-04-02 by Will Clarkson (UM-Dearborn), with important
-# improvements made by Alessandro Mazzi (INAF)
-#
+# Started 2021-04-02
 #
 
 #
