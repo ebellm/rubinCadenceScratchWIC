@@ -319,7 +319,7 @@ al. spacing.
                     margins=margins)
 
 ###
-def getColorbarlimits(cbar=None):
+def getColorbarLimits(cbar=None):
 
     """Gets the colorbar limits for matplotlib colorbar, respecting
     the matplotlib version"""
