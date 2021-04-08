@@ -295,7 +295,7 @@ al. spacing.
         
 def testReadExt(showExtn=False, sfilt='r', showDeltamag=False, \
                 figName='test_mapDust.png', \
-                pathMap='merged_ebv3d_nside64.fits'):
+                pathMap='merged_ebv3d_nside64.fits', norm='log'):
 
     """Tests whether we can read the extinction map we just created. If
 showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then the quantity (m-M) is plotted, including extinction. pathMap is the path to the E(B-V) vs distance map. Example call:
@@ -348,13 +348,20 @@ showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then th
             dmod = 5.0*np.log10(distThis) - 5.
             vecSho += dmod
             sUnit = r'(m-M)$_%s$' % (sfilt)
+
+        # if log scheme requested, make vecSho a masked array
+        if norm.find('log') > -1:
+            vecSho = np.ma.masked_less_equal(vecSho, 0.)
+            # on my system, mollview still doesn't handle masked
+            # arrays well...
+            vecSho[vecSho.mask] = np.ma.min(vecSho)
             
         # Show the dust map
         hp.mollview(vecSho, 2, coord=['C','G'], nest=ebv.nested, \
                     title='Requested distance %.1f pc' % (dpcs[iDist]), \
                     unit=sUnit, \
                     cmap=cmap, sub=(2,2,iDist+1), \
-                    norm='log', margins=margins)
+                    norm=norm, margins=margins)
 
         cbar = plt.gca().images[-1].colorbar
         cmin, cmax = cbar.get_clim()
