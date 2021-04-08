@@ -58,7 +58,7 @@ or can be re-imported here."""
                  distances=np.array([]), \
                  objBovy = None, Rv=3.1, \
                  objL19=None, \
-                 distMaxCoarsePc = 15000., \
+                 distMaxCoarsePc = 17500., \
                  nDistBins = 400,
                  map_version='19'):
 
@@ -193,7 +193,7 @@ Bovy et al.
             nbins = np.size(self.distsPc)
             stepFine = distsClose[1] - distsClose[0]
             stepFar  = distsFar[1] - distsFar[0]
-            print("generateDistances INFO - nbins %i, fine step %.3f, coarse step %.3f" % (nbins, stepFine, stepFar))
+            print("lineofsight.generateDistances INFO - nbins %i, fine step %.3f, coarse step %.3f" % (nbins, stepFine, stepFar))
         
     def getLallementEBV(self):
 
@@ -346,14 +346,14 @@ def testOneSightline(l=0., b=4., Rv=3.1, useCoarse=False):
     los.showLos(showPoints=True)
 
 def hybridSightline(lCen=0., bCen=4., \
-                    nl=5, nb=5, \
+                    nl=4, nb=4, \
                     maxPc=9000., minPc=0.5, stepPc=25, \
                     nside=64, \
                     pixFillFac=1.0, collisionArcmin=2., \
                     pctUpper=75., pctLower=25., \
                     Rv=3.1, \
                     distFrac=1., diffRatioMin=0.5, \
-                    setLimDynamically=True, \
+                    setLimDynamically=False, \
                     minEBV=1.0e-3, \
                     minDistL19=1000., \
                     returnValues = False, \
@@ -365,10 +365,13 @@ def hybridSightline(lCen=0., bCen=4., \
                     distancesPc = np.array([]), \
                     hpid=-1, nested=False, \
                     objBovy=None, \
-                    objL19=None, dmaxL19=1e6,\
+                    objL19=None, \
                     versionL19='19', \
+                    dmaxL19=1e6,\
+                    bridgeL19 = False, \
+                    bridgeWidthL19 = 1000, \
                     planckMap=None, \
-                    planckUpperLim = 10.):
+                    planckUpperLim = 15.):
 
     """Samples the Bovy et al. and Lallement et al. 2019 E(B-V) vs
     distance maps, constructed as the median E(B-V) vs distance curve
@@ -449,7 +452,7 @@ model.
     distance. If the dynamically determined distance is less than this
     value, the default (distFrac x max(dist_L19) is used instead.
 
-    tellTime = report the timing to screen
+    tellTime = Report screen output, including the timing.
 
     doPlots = prepare plots?
 
@@ -479,11 +482,22 @@ model.
     re-initialized in this method using the Rv and versionL19
     arguments
 
+    versionL19 = Version of Lallement et al. to use if we are
+    re-initializing L19 here.
+
     dmaxL19 = Maximum distance for Lallement et al. profile. Defaults
     to a very large number so the profile up to the intrinsic maximum
-    distance of the map is used. Setting to zero disables Lallement's map.
-    Setting instead to -1 will use Bovy alone if non-zero for the line
-    of sight, otherwise only Lallement.
+    distance of the map is used. Setting to zero disables Lallement's
+    map.  Setting instead to a negative value will use Bovy alone if
+    non-zero for the line of sight, otherwise only Lallement.
+
+    bridgeL19 - if True, L19 is taken as "correct", and the E(B-V) is
+    extended from the value of L+19 at the maximum distance, to the
+    value of Bovy et al. at the maximum distance plus distance
+    bridgeWidthL19
+
+    bridgeWidthL19 - the distance interval over which the above
+    extension is to take place.
 
     planckMap = healpix 2d map of Planck E(B-V) predictions. Ignored
     if the query coords were not healpix, OR if Green's "dustmaps" is
@@ -700,20 +714,27 @@ model.
 
     # Use max distance provided by the user if required. 
     usemaxdist = False
-    if 0<=dmaxL19<losCen.distLimPc:
-        print("Using user provided max distance for L+19.")
+    if 0. <= dmaxL19 < losCen.distLimPc:
         distCompare = dmaxL19
         usemaxdist=True
-    elif dmaxL19==-1:
+
+        if tellTime:
+            print("compareExtinctions.hybridSightline INFO - Using user provided max dist for L+19.")
+        
+    elif dmaxL19 < 0:  # replaced "== -1" with "<0"
+        
         # Specify that distance should not be changed by other operations
         usemaxdist=True
         # Do not use Lallement if Bovy has non-zero values
         if ebvBovyMed.sum()!=0:
             distCompare = 0
+
         # else use the full extent of the profile
-    elif dmaxL19<0:
-        raise NotImplemented("The value of dmax has to be either -1 or >=0, currently {}.".format(dmaxL19))
-    
+#    elif dmaxL19<0:
+#        raise NotImplemented("The value of dmax has to be either -1 or >=0, currently {}.".format(dmaxL19))
+
+
+
     if usemaxdist and doPlots:
         ax1.axvline(distCompare,color='r',linestyle='dotted',label='dmaxL19')
 
@@ -761,10 +782,40 @@ model.
     b19 = distsMed < distCompare
     ebvL19scaled = ebvL19Med/rvFactor
 
-    # try quadratic scaling (note that the area plot later doesn't yet
-    # know about this)
-    # ebvL19scaled = quadFactor * ebvL19Med**2
-    
+    # 2021-04-07 If the user prefers to accept L+19 and extend it to
+    # meet bovy et al. I think it happens here - we change the meaning
+    # of ebvL19Scaled (to ebv19 "replaced"):
+    if bridgeL19 and distCompare > 0 and ebvBovyMed[iMaxL19] > minEBV:
+
+        distRight = np.min([distCompare + bridgeWidthL19, \
+                            np.max(distsMed)])
+
+        if tellTime:
+            print("compareExtinctions.hybridSightline INFO - bridging L19 to bovy et al. 19 from distance %.1f - %.1f" % (distCompare, distRight))
+
+        
+        # find the nearest values of the two extinctions to use
+        iLeft =  np.argmin(np.abs(distsMed - distCompare))
+        iRight = np.argmin(np.abs(distsMed - distRight))
+
+        # Evaluate the straight line parameters that take L19 to Bovy
+        m, c = linkStraightline(distsMed[iLeft], distsMed[iRight], \
+                                ebvL19Med[iLeft], ebvBovyMed[iRight])
+
+        # we re-initialize hybrid including the bridge
+        ebvHybrid = np.copy(ebvL19Med)
+
+        # ... apply the transformation along the bridge...
+        ebvHybrid[iLeft:iRight] = m*distsMed[iLeft:iRight] + c
+
+        # ... and everything to the right of the bridge is Bovy
+        ebvHybrid[iRight::] = ebvBovyMed[iRight::]
+
+        # Finally, we need to re-define the boolean "b19" so that it
+        # doesn't switch scaled L19 back in again.
+        b19 = np.isnan(ebvHybrid)
+
+        
     #ebvHybrid[b19] = ebvL19Med[b19]/rvFactor
     bBovBad = ebvHybrid < minEBV
     if dmaxL19==-1:
@@ -772,9 +823,11 @@ model.
         # distCompare is non-zero if Bovy is zero, use only Lallement
         if distCompare!=0:
             ebvHybrid = ebvL19Med
+            
         if len(bBovBad)>0:
-            print(("compareExtinctions.hybridSightline warning - Values in the E(B-V) "
-                  "Bovy profile are smaller than the requested minimum ."))
+            if tellTime:
+                print(("compareExtinctions.hybridSightline WARN - Values in the E(B-V) "
+                       "Bovy profile are not larger than the requested minimum of %.2f at all distances." % (minEBV)))
         # If distCompare is zero, Bovy is non-zero and will be the only profile used
     else:
         if distCompare>0:
@@ -782,9 +835,13 @@ model.
         
             # ebvHybrid[bBovBad] = ebvL19Med[bBovBad]/rvFactor
             ebvHybrid[bBovBad] = ebvL19scaled[bBovBad]
-    
+
+    # If the user's choices have led to a profile that is zero at all
+    # distances, warn the user (unless the user has suppressed text
+    # output)
     if np.all(ebvHybrid==0):
-        print("compareExtinctions.hybridSightline warning - The E(B-V) profile is zero everywhere!")
+        if tellTime:
+            print("compareExtinctions.hybridSightline WARN - The E(B-V) profile is zero at all distances!")
 
     if tellTime:
         t2 = time.time()
@@ -841,19 +898,21 @@ model.
                          label='Hybrid E(B-V)', zorder=31, alpha=0.5)
     
     # show lallement et al. scaled up to bovy et al. at the transition
+    # -- IF we wanted to do the scaling...
     coloScaled='b'
-    dumScal = ax1.plot(distsMed[b19], ebvL19scaled[b19], \
-                       color=coloScaled, \
-                       lw=2, \
-                       ls=':', \
-                       label=r'L19, R$_{V}$=%.2f' % (RvScaled), \
-                       zorder=35, alpha=0.75)
-    dumLevsScal = ax1.fill_between(distsMed[b19], \
-                                   ebvL19Levs[0][b19]/rvFactor, \
-                                   ebvL19Levs[1][b19]/rvFactor, \
-                                   color=coloScaled, \
-                                   alpha=0.2, \
-                                   zorder=34)
+    if not bridgeL19:
+        dumScal = ax1.plot(distsMed[b19], ebvL19scaled[b19], \
+                           color=coloScaled, \
+                           lw=2, \
+                           ls=':', \
+                           label=r'L19, R$_{V}$=%.2f' % (RvScaled), \
+                           zorder=35, alpha=0.75)
+        dumLevsScal = ax1.fill_between(distsMed[b19], \
+                                       ebvL19Levs[0][b19]/rvFactor, \
+                                       ebvL19Levs[1][b19]/rvFactor, \
+                                       color=coloScaled, \
+                                       alpha=0.2, \
+                                       zorder=34)
         
         #sAnno = "Green dashed: L19 w/ Rv=%.2f" % (RvScaled)
         #dum = ax1.annotate(sAnno, (0.95,0.05), xycoords='axes fraction', \
@@ -948,15 +1007,34 @@ model.
     if returnValues:
         return ebvHybrid, distsMed, rvFactor, distCompare
 
+def linkStraightline(xLeft=0., xRight=0., yLeft=0., yRight=0.):
+
+    """Given (x,y) points for the left- and right-ends of a straight line,
+return the coefficients of the straight line m, c from y = mx + c.
+
+    """
+
+    if np.abs(xRight - xLeft) < 1.0e-3:
+        return 1., 0.
+
+    m = (yRight - yLeft) / (xRight - xLeft)
+
+    c = yLeft - m*xLeft
+
+    return m, c
+    
 def loopSightlines(nside=64, imin=0, imax=25, \
-                   nbins=300, nested=False, \
-                   nl=5, nb=5, tellTime=False, \
+                   nbins=500, nested=False, \
+                   nl=4, nb=4, tellTime=False, \
                    reportInterval=100, \
                    fitsPath='', \
-                   dirChunks='./ebvChunks', \
+                   dirChunks='./ebvChunksRedo', \
                    fracPix=1., \
                    map_version='19', \
-                   Rv=3.1):
+                   Rv=3.1, \
+                   dmaxL19=1e6, \
+                   bridgeL19=False, \
+                   bridgeWidthL19 = 1000):
 
     """Wrapper: samples the 3D extinction hybrid model for a range of
     healpixels
@@ -1045,10 +1123,20 @@ def loopSightlines(nside=64, imin=0, imax=25, \
              'nbins':nbins, 'nl':nl, 'nb':nb, \
              'fracPix':fracPix}
 
+    dMeta['Rv'] = Rv
+    dMeta['mapvers'] = map_version
+    
     # 2021-04-05: if planck_2d is available on this system, add this
     # to the header (we do not yet have any option to deactivate the
     # substitution if present).
     dMeta['PlanckOK'] = PLANCK_2D is not None
+
+    # 2021-04-07: Now that we have options for how we handle L19 and
+    # Bovy merging, pass the choices to the metadata so that it
+    # appears in the fits header.
+    dMeta['dmaxL19'] = dmaxL19
+    dMeta['bridgL19'] = bridgeL19
+    dMeta['bridgwid'] = bridgeWidthL19
     
     # For reporting the sightlines to terminal
     tStart = time.time()
@@ -1080,6 +1168,9 @@ def loopSightlines(nside=64, imin=0, imax=25, \
                               objL19=l19, \
                               doPlots=False, \
                               tellTime=tellTime, \
+                              dmaxL19=dmaxL19, \
+                              bridgeL19=bridgeL19, \
+                              bridgeWidthL19=bridgeWidthL19, \
                               returnValues=True, \
                               hpid=hpids[iHP])
 
@@ -1221,7 +1312,8 @@ individual files.
         hdul.close()
 
     # now we have our combined arrays and template header. Write them!
+    # (2021-04-07 now not with the mask, since I don't think I know
+    # how it will be used...)
     writeExtmap(hpidsMaster, distsMaster, ebvsMaster, sfacsMaster, \
-                maskMaster, \
                 header=hdr0, \
                 fitsPath=pathJoined)
