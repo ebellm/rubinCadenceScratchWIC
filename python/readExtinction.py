@@ -14,6 +14,10 @@ import numpy as np
 import healpy as hp
 from astropy.io import fits
 
+# For querying a particular sight line
+from astropy.coord import SkyCoord
+import astropy.units as u
+
 # matplotlib methods
 import matplotlib
 import matplotlib.pylab as plt
@@ -117,6 +121,24 @@ distance"""
                                           axis=-1).squeeze()
 
         return ebvsClosest, distsClosest
+
+    def getEBVatSightline(self, l=0., b=0., ebvMap=np.array([])):
+        
+        """Utility - returns E(B-V) at a single distance at a single
+        sight-line"""
+
+        if np.size(ebvMap) < 1:
+            return 0.
+
+        # find the coords on the sky of the requested sight line, and
+        # convert this to healpix
+        coo = SkyCoord(l*u.deg, b*u.deg, frame='galactic')
+        
+        hpid = hp.ang2pix(self.nside, \
+                              coo.icrs.ra.deg, coo.icrs.dec.deg, \
+                              nest=self.nested, lonlat=True)
+
+        return ebvMap[hpid]
 
     def getDeltaMag(self, sFilt='r'):
 
@@ -292,7 +314,8 @@ al. spacing.
                     cmap=cmap, sub=(1,2,2), \
                     margins=margins)
 
-        
+    
+
 def testReadExt(showExtn=False, sfilt='r', showDeltamag=False, \
                 figName='test_mapDust.png', \
                 pathMap='merged_ebv3d_nside64.fits', norm='log'):
@@ -496,3 +519,22 @@ def testShowDistresol(pathMap='merged_ebv3d_nside64.fits'):
     ebv=ebv3d(pathMap)
     ebv.loadMap()
     ebv.showDistanceInterval()
+
+def testGetOneSightline(l=0., b=0., dpc=3000., \
+                            pathMap='merged_ebv3d_nside64.fits'):
+
+    """Test getting the E(B-V) map at a particular
+    sight-line. Currently the nearest healpix to the requested
+    position is returned."""
+
+    # load the map and compute the E(B-V) at the distance
+    ebv = ebv3d(pathMap)
+    ebv.loadMap()
+
+    ebvs, dists = ebv.getMapNearestDist(dpc)
+
+    # Now we've obtained the map at a given distance, we can query
+    # particular sight-lines. Let's try the coords requested
+    ebvHere = ebv.getEBVatSightline(l, b, ebvs)
+    print("Info: E(B-V) at (l,b) nearest to (%.2f, %.2f) is %.2f" \
+              % (l, b, ebvHere))
