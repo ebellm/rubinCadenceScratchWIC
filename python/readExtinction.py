@@ -198,7 +198,7 @@ distance"""
                 
         return ebvRet, lTest, bTest
 
-    def getDeltaMag(self, sFilt='r'):
+    def getDeltaMag(self, sFilt='r',ipix=None):
 
         """Converts the reddening map into an (m-M) map for the given
         filter"""
@@ -206,22 +206,34 @@ distance"""
         if not sFilt in self.R_x.keys():
             sFilt = 'r'
         Rx = self.R_x[sFilt]
-        mMinusM = self.dmods[np.newaxis,:] + Rx * self.ebvs
+        if ipix is not None:
+            mMinusM = self.dmods[np.newaxis,ipix] + Rx * self.ebvs[ipix,:]
+            # make 3d so that form the outside nothing changes
+        else:
+            mMinusM = self.dmods[np.newaxis,:] + Rx * self.ebvs
 
         return mMinusM[0]
 
-    def getDistanceAtMag(self, deltamag=15.2, sfilt='r'):
+    def getDistanceAtMag(self, deltamag=15.2, sfilt='r', ipix=None):
 
         """Returns the distances at which the combination of distance and
 extinction produces
 
+            If ipix is provided, either as a single int or a list|array or
+            ints representing Healpix pixel indices, only the number of
+            pixels requested will be queried. Arrays will be returne in any
+            case, even when one single pixel is requested.
         """
 
         # A little bit of parsing... if deltamag is a scalar,
         # replicate it into an array. Otherwise just reference the
         # array that was passed in. For the moment, trust the user to
         # have inputted a deltamag vector of the right shape.
-        npix = self.ebvs.shape[0]
+        if ipix is not None:
+            ipix = np.atleast_1d(ipix)
+            npix = ipix.shape[0]
+        else:
+            npix = self.ebvs.shape[0]
         if np.isscalar(deltamag):
             dmagVec = np.repeat(deltamag, npix)
         else:
@@ -233,7 +245,7 @@ extinction produces
             return
 
         # Now we need apparent minus absolute magnitude:
-        mMinusM = self.getDeltaMag(sfilt)
+        mMinusM = self.getDeltaMag(sfilt,ipix=ipix)
 
         # Now we find elements in each row that are closest to the
         # requested deltamag:
@@ -241,10 +253,17 @@ extinction produces
         iExpand = np.expand_dims(iMin, axis=-1)
 
         # now find the closest distance...
-        distsClosest = np.take_along_axis(self.dists, \
-                                          iExpand, \
-                                          axis=-1).squeeze()
-
+        if ipix is not None:
+            distsClosest = np.take_along_axis(self.dists[ipix], \
+                                              iExpand, \
+                                              axis=-1).squeeze()
+            distsClosest = np.atleast_1d(distsClosest)
+            # if npix>1:
+            #     distsClosest = distsClosest.squeeze()
+        else:
+            distsClosest = np.take_along_axis(self.dists, \
+                                              iExpand, \
+                                              axis=-1).squeeze()
 
         # ... Let's return both the closest distances and the map of
         # (m-M), since the user might want both.
