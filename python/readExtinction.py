@@ -210,10 +210,37 @@ distance"""
 
         return mMinusm0[0]
 
-    def getDistanceAtMag(self, deltamag=15.2, sfilt='r'):
+    def getDistanceAtMag(self, deltamag=15.2, sfilt='r', \
+                         extrapolateFar=True):
 
         """Returns the distances at which the combination of distance and
-extinction produces the input magnitude difference (m-M) = deltamag.
+extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
+
+        ARGUMENTS:
+
+        deltamag = target (m-m_0). Can be scalar or array. If array,
+        must have the same number of elements as the healpix map
+        (i.e. hp.nside2npix(64) )
+
+        sfilt = filter at which we want deltamag
+
+        extrapolateFar - for distances beyond the maximum
+        distance in the model, treat the extinction as constant beyond
+        that maximum distance and compute the distance at which
+        delta-mag is achieved. (Defaults to True: only set to False if
+        you know what you are doing!!)
+
+        RETURNS:
+
+        distances, mMinusM, bFar   -- where:
+
+        distances = npix-length array giving the distances in parsecs
+
+        mMinusM = npix-length array giving the magnitude differences
+
+        bFar = npix-length boolean indicating whether the maximum
+        distance indicated by a sight line was beyond the range of
+        validity of the extinction model.
 
         """
 
@@ -230,7 +257,7 @@ extinction produces the input magnitude difference (m-M) = deltamag.
         if np.size(dmagVec) != npix:
             print("ebv3d.getDistanceAtMag WARN - size mismatch:", \
                   npix, np.shape(dmagVec))
-            return
+            return np.array([]), np.array([]), np.array([])
 
         # Now we need apparent minus absolute magnitude:
         mMinusM = self.getDeltaMag(sfilt)
@@ -245,10 +272,31 @@ extinction produces the input magnitude difference (m-M) = deltamag.
                                           iExpand, \
                                           axis=-1).squeeze()
 
+        # 2021-04-09: started implementing distances at or beyond the
+        # maximum distance. Points for which the closest delta-mag is
+        # in the maximum distance bin are picked.
+        bFar = iMin == self.dists.shape[-1]-1
 
+        if not extrapolateFar:
+            return distsClosest, mMinusM, bFar
+        
+        # For distances beyond the max, we use the maximum E(B-V)
+        # along the line of sight to compute the distance.
+
+        # We do distance modulus = (m-M) - A_x, and calculate the
+        # distance from the result. We do this for every sightline
+        # at once.
+        ebvsMax = self.R_x[sfilt] * self.ebvs[:,-1]
+        distModsFar = dmagVec - ebvsMax
+
+        distsFar = 10.0**(0.2*distModsFar + 1.)
+
+        # Now we swap in the far distances
+        distsClosest[bFar] = distsFar[bFar]
+            
         # ... Let's return both the closest distances and the map of
         # (m-M), since the user might want both.
-        return distsClosest, mMinusM
+        return distsClosest, mMinusM, bFar
 
     def showMollview(self, hparr=np.array([]), fignum=4, \
                      subplot=(1,1,1), figsize=(10,6),\
@@ -491,7 +539,7 @@ def testDeltamags(sfilt='r', dmagOne=13., \
                   cmap='viridis', norm='linear', \
                   pathMap='merged_ebv3d_nside64.fits', \
                   dmagVec=np.array([]), testMethod=False, \
-                  testFigureMethod=False):
+                  testFigureMethod=False, testFarDistances=True):
 
     """Use the extinction map to find the distance at which a particular
 delta-mag is found.
@@ -541,8 +589,9 @@ delta-mag is found.
                                           iExpand, \
                                           axis=-1).squeeze()
     else:
-        distsClosest, mMinusM = ebv.getDistanceAtMag(dmagOne, sfilt)
-
+        distsClosest, mMinusM, bFar \
+            = ebv.getDistanceAtMag(dmagOne, sfilt, \
+                                   extrapolateFar=testFarDistances)
 
     if testFigureMethod:
         figThis = ebv.showMollview(distsClosest, 4, cmap=cmap, norm=norm, \
