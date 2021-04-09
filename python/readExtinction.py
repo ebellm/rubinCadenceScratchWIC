@@ -200,20 +200,20 @@ distance"""
 
     def getDeltaMag(self, sFilt='r'):
 
-        """Converts the reddening map into an (m-M) map for the given
+        """Converts the reddening map into an (m-m0) map for the given
         filter"""
 
         if not sFilt in self.R_x.keys():
             sFilt = 'r'
         Rx = self.R_x[sFilt]
-        mMinusM = self.dmods[np.newaxis,:] + Rx * self.ebvs
+        mMinusm0 = self.dmods[np.newaxis,:] + Rx * self.ebvs
 
-        return mMinusM[0]
+        return mMinusm0[0]
 
     def getDistanceAtMag(self, deltamag=15.2, sfilt='r'):
 
         """Returns the distances at which the combination of distance and
-extinction produces
+extinction produces the input magnitude difference (m-M) = deltamag.
 
         """
 
