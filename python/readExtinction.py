@@ -200,24 +200,24 @@ distance"""
 
     def getDeltaMag(self, sFilt='r',ipix=None):
 
-        """Converts the reddening map into an (m-M) map for the given
+        """Converts the reddening map into an (m-m0) map for the given
         filter"""
 
         if not sFilt in self.R_x.keys():
             sFilt = 'r'
         Rx = self.R_x[sFilt]
         if ipix is not None:
-            mMinusM = self.dmods[np.newaxis,ipix] + Rx * self.ebvs[ipix,:]
+            mMinusm0 = self.dmods[np.newaxis,ipix] + Rx * self.ebvs[ipix,:]
             # make 3d so that form the outside nothing changes
         else:
-            mMinusM = self.dmods[np.newaxis,:] + Rx * self.ebvs
+            mMinusm0 = self.dmods[np.newaxis,:] + Rx * self.ebvs
 
-        return mMinusM[0]
+        return mMinusm0[0]
 
     def getDistanceAtMag(self, deltamag=15.2, sfilt='r', ipix=None):
 
         """Returns the distances at which the combination of distance and
-extinction produces
+extinction produces the input magnitude difference (m-M) = deltamag.
 
             If ipix is provided, either as a single int or a list|array or
             ints representing Healpix pixel indices, only the number of
