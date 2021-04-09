@@ -51,7 +51,7 @@ but currently does nothing with it."""
         self.hdr = []
         self.nside = 64
         self.nested = False
-
+        
         # Distance moduli from distances
         self.dmods = np.array([])
 
@@ -98,6 +98,7 @@ but currently does nothing with it."""
         self.nside = self.hdr['NSIDE']
         self.nested = self.hdr['NESTED']
 
+        
         self.calcDistmods()
         
     def calcDistmods(self):
@@ -126,31 +127,76 @@ distance"""
 
         return ebvsClosest, distsClosest
 
-    def getEBVatSightline(self, l=0., b=0., ebvMap=np.array([])):
+    def getEBVatSightline(self, l=0., b=0., \
+                          ebvMap=np.array([]), interp=False, \
+                          showEBVdist=False):
         
-        """Utility - returns E(B-V) at a single distance at a single
-        sight-line. Also returns the nearest coords to the requested
-        coords for debug purposes."""
+        """Utility - returns E(B-V) for one or more sightlines in Galactic
+        coordinates. Takes as an argument a 2D healpix array of
+        quantities (usually this will be reddening returned by
+        getMapNearestDist() ). Also returns the nearest coords to the
+        requested coords for debug purposes. Arguments:
+
+        l, b = Galactic coordinates of the sight-line(s). Can be
+        scalar or vector.
+
+        ebvMap = 2D reddening map to use
+
+        interp: Interpolate using healpy? If False, the nearest
+        healpix is used instead.
+
+        showEBVdist = Will usually be used only for debugging
+        purposes. If True, this method will plot the run of E(B-V) vs
+        distance for the nearest hpid (ignored if interp=True)
+
+        """
 
         if np.size(ebvMap) < 1:
             return 0., -99., -99.
-
+        
         # find the coords on the sky of the requested sight line, and
         # convert this to healpix
         coo = SkyCoord(l*u.deg, b*u.deg, frame='galactic')
-        
-        hpid = hp.ang2pix(self.nside, \
-                              coo.icrs.ra.deg, coo.icrs.dec.deg, \
+
+        # Equatorial coordinates of the requested position(s)
+        ra = coo.icrs.ra.deg
+        dec = coo.icrs.dec.deg
+
+        if interp:
+            ebvRet = hp.get_interp_val(ebvMap, ra, dec, \
+                                       nest=self.nested, lonlat=True)
+
+            # For backwards compatibility with the "Test" return values
+            lTest = np.copy(l)
+            bTest = np.copy(b)
+            
+        else:
+            hpid = hp.ang2pix(self.nside, \
+                              ra, dec, \
                               nest=self.nested, lonlat=True)
-
-        # For debugging: determine the coordinates at this nearest pixel
-        raTest, decTest = hp.pix2ang(self.nside, hpid, \
+            ebvRet = ebvMap[hpid]
+            
+            # For debugging: determine the coordinates at this nearest pixel
+            raTest, decTest = hp.pix2ang(self.nside, hpid, \
                                          nest=self.nested, lonlat=True)
-        cooTest = SkyCoord(raTest*u.deg, decTest*u.deg, frame='icrs')
-        lTest = cooTest.galactic.l.degree
-        bTest = cooTest.galactic.b.degree
+            cooTest = SkyCoord(raTest*u.deg, decTest*u.deg, frame='icrs')
+            lTest = cooTest.galactic.l.degree
+            bTest = cooTest.galactic.b.degree
 
-        return ebvMap[hpid], lTest, bTest
+            # also for debugging: show the run of E(B-V) vs distance
+            # for the nearest healpix ID:
+            if showEBVdist and np.isscalar(hpid):
+                fig9 = plt.figure(9)
+                fig9.clf()
+                ax9 = fig9.add_subplot(111)
+                dummy = ax9.plot(self.dists[hpid], self.ebvs[hpid])
+                ax9.set_xlabel('Distance, pc')
+                ax9.set_ylabel('E(B-V)')
+                ax9.grid(which='both', visible=True, alpha=0.5)
+                ax9.set_title('hpid: %i, (l,b) = (%.2f, %.2f)' \
+                              % (hpid, lTest , bTest))
+                
+        return ebvRet, lTest, bTest
 
     def getDeltaMag(self, sFilt='r'):
 
@@ -545,23 +591,114 @@ def testShowDistresol(pathMap='merged_ebv3d_nside64.fits'):
     ebv.showDistanceInterval()
 
 def testGetOneSightline(l=0., b=0., dpc=3000., \
-                            pathMap='merged_ebv3d_nside64.fits'):
+                            pathMap='merged_ebv3d_nside64.fits', \
+                        interpCoo=False, showVsDistance=True):
 
     """Test getting the E(B-V) map at a particular
     sight-line. Currently the nearest healpix to the requested
-    position is returned."""
+    position is returned. Arguments:
 
+    l, b = Galactic coordinates requested. Can be scalars or arrays.
+
+    dpc = The distance requested at which the EBV is to be evaluated.
+
+    pathMap = path to the E(B-V) map.
+
+    interpCoo: If True, the E(B-V) values are interpolated from the
+    nearest entries in the healpixel map. Otherwise the nearest
+    healpix ID(s) will be queried.
+
+    showVsDistance: if True, AND interpCoo is False, AND l, b are
+    both scalars, then the run of E(B-V) vs distance is plotted for
+    the nearest hpid to the requested coordinates.
+
+    """
+    
+    # Commentary 2021-04-08: I think the discrepancy in tests between
+    # the loaded E(B-V) and the E(B-V) values generated by
+    # compareExtinctions.hybridsightline were due to a different value
+    # of pixFillFrac being used. When generating the extinction map
+    # currently on my home area, a value of 0.80 was used (to come in
+    # a bit from the pixel corners). This test routine now prints
+    # selected header metadata to clarify the arguments to send to
+    # hybridSightline when testing.
+
+    # Here is a recommended sequence for testing:
+    
+    # readExtinction.testGetOneSightline(1, 2., dpc=4000.,
+    # interpCoo=False)
+
+    # <Then read the coordinates of the nearest hpid to those
+    # requested. In this case, the nearest coords are 0.79, 1.87. So
+    # we put those back in:>
+
+    # readExtinction.testGetOneSightline(0.79, 1.87, dpc=4000.,
+    # interpCoo=False)
+
+    # Now, we use hybridsightline to re-generate the extinction map at
+    # those coordinates, using the metadata printed to screen from the
+    # previous command to set up the hybrid sightline in the same was
+    # as was used to generate the map. In this case, pixFillFac was
+    # 0.8, nL, nB were both 4.
+
+    # compareExtinctions.hybridSightline(0.79, 1.87, nl=4, nb=4,
+    # setLimDynamically=False, useTwoBinnings=True,
+    # nBinsAllSightlines=300, doPlots=True, pixFillFac=0.8)
+
+    # At THIS point, the E(B-V) you see at the requested distance
+    # should match that returned by testGetOneSightline() at the
+    # specified coordinates.
+
+    # With all that said, here is the test routine:
+    
     # load the map and compute the E(B-V) at the distance
     ebv = ebv3d(pathMap)
     ebv.loadMap()
 
+    # Report some information to the screen about the map
+    print("ebv metadata info: NESTED: %i, NSIDE:%i, pixFillFrac:%.2f, nL=%i, nB=%i" \
+          % (ebv.hdr['NESTED'], ebv.hdr['NSIDE'], ebv.hdr['fracPix'], ebv.hdr['nl'], ebv.hdr['nb']))
+
+    # Also report additional metadata which might or might not appear
+    # in the version on my webspace, but which is now generated by
+    # loopSightlines. See compareExtinctions.loopSightlines for the
+    # header keywords that are now added to the 3d map.
+    print("Additional header keywords:")
+    for skey in ['Rv', 'mapvers', 'PlanckOK', 'dmaxL19', \
+                 'bridgL19', 'bridgwid']:
+        try:
+            print(skey, ebv.hdr[skey])
+        except:
+            pass
+    
     ebvs, dists = ebv.getMapNearestDist(dpc)
 
     # Now we've obtained the map at a given distance, we can query
     # particular sight-lines. Let's try the coords requested
-    ebvHere, lTest, bTest = ebv.getEBVatSightline(l, b, ebvs)
-    print("Info: E(B-V) at (l,b) nearest to (%.2f, %.2f) is %.2f" \
-              % (l, b, ebvHere))
+    ebvHere, lTest, bTest \
+        = ebv.getEBVatSightline(l, b, ebvs, \
+                                interp=interpCoo, \
+                                showEBVdist=showVsDistance)
 
-    print("Info: nearest Galactic coords to requested position: %.2f, %.2f" \
-              % (lTest, bTest))
+    # For testing purposes, we can also find the distance
+    # corresponding to our sight line using exactly the same method:
+    distHere, _, _ = ebv.getEBVatSightline(l, b, dists, \
+                                           interp=interpCoo, \
+                                           showEBVdist=True)
+
+    # If the coords are scalars, report to screen.
+    if np.isscalar(l):
+    
+        print("Info: E(B-V), distance at (l,b, distance) nearest to (%.2f, %.2f, %.1f) are %.2f, %.1f" \
+              % (l, b, dpc, ebvHere, distHere))
+
+        print("Info: nearest Galactic coords to requested position: %.2f, %.2f" \
+        % (lTest, bTest))
+
+    else:
+        print("INFO: requested l:", l)
+        print("INFO: requested b:", b)
+        print("INFO: nearest l:", lTest)
+        print("INFO: nearest b:", bTest)
+        print("INFO: returned E(B-V)", ebvHere)
+        print("INFO: returned distances:", distHere)
