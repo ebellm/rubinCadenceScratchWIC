@@ -589,8 +589,11 @@ delta-mag is found.
                                           iExpand, \
                                           axis=-1).squeeze()
     else:
+        if np.size(dmagVec) < 1:
+            dmagVec = np.repeat(dmagOne, np.shape(mMinusM)[0])
+
         distsClosest, mMinusM, bFar \
-            = ebv.getDistanceAtMag(dmagOne, sfilt, \
+            = ebv.getDistanceAtMag(dmagVec, sfilt, \
                                    extrapolateFar=testFarDistances)
 
     if testFigureMethod:
