@@ -539,7 +539,8 @@ def testDeltamags(sfilt='r', dmagOne=13., \
                   cmap='viridis', norm='linear', \
                   pathMap='merged_ebv3d_nside64.fits', \
                   dmagVec=np.array([]), testMethod=False, \
-                  testFigureMethod=False, testFarDistances=True):
+                  testFigureMethod=False, testFarDistances=True, \
+                  maxDistShow=None):
 
     """Use the extinction map to find the distance at which a particular
 delta-mag is found.
@@ -590,17 +591,20 @@ delta-mag is found.
                                           axis=-1).squeeze()
     else:
         if np.size(dmagVec) < 1:
-            dmagVec = np.repeat(dmagOne, np.shape(mMinusM)[0])
+            dmagInp = dmagOne
+        else:
+            dmagInp = np.copy(dmagVec)
 
         distsClosest, mMinusM, bFar \
-            = ebv.getDistanceAtMag(dmagVec, sfilt, \
+            = ebv.getDistanceAtMag(dmagInp, sfilt, \
                                    extrapolateFar=testFarDistances)
 
     if testFigureMethod:
         figThis = ebv.showMollview(distsClosest, 4, cmap=cmap, norm=norm, \
                                    coord=['C','G'], sUnit='Distance (pc)')
         return
-        
+
+    
     fig4=plt.figure(4, figsize=(8,6))
     fig4.clf()
     sTitle = r'Distance at $\Delta$%s=%.2f (%s scale)' \
@@ -608,7 +612,8 @@ delta-mag is found.
     hp.mollview(distsClosest, 4, coord=['C','G'], nest=ebv.nested, \
                 title=sTitle, \
                 unit='Distance (pc)', \
-                cmap=cmap, norm=norm)
+                cmap=cmap, norm=norm, \
+                max=maxDistShow)
 
     cbar = plt.gca().images[-1].colorbar
     cmin, cmax = getColorbarLimits(cbar)
