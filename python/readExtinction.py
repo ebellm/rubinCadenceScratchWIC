@@ -257,6 +257,8 @@ extinction produces
             distsClosest = np.take_along_axis(self.dists[ipix], \
                                               iExpand, \
                                               axis=-1).squeeze()
+            # To keep things similar to the case of querying the whole map,
+            #  we need to return an array also in case ipix is a single pixel.
             distsClosest = np.atleast_1d(distsClosest)
             # if npix>1:
             #     distsClosest = distsClosest.squeeze()
