@@ -723,3 +723,36 @@ def testGetOneSightline(l=0., b=0., dpc=3000., \
         print("INFO: nearest b:", bTest)
         print("INFO: returned E(B-V)", ebvHere)
         print("INFO: returned distances:", distHere)
+
+
+def testInteprolateProfile(gall,galb,dist,ebvmap=None):
+    if ebvmap is None:
+        ebvmap = ebv3d()
+        ebvmap.loadMap()
+    
+    gall = np.atleast_1d(gall)
+    galb = np.atleast_1d(galb)
+    dist = np.atleast_1d(dist)
+    N = len(dist)
+    
+    coo = SkyCoord(gall*u.deg,galb*u.deg)
+    RAs = coo.icrs.ra.deg
+    DECs = coo.icrs.dec.deg
+    hpids, weights = hp.get_interp_weights(64, RAs, DECs, True, lonlat=True)
+    # hpids, weights = hp.get_interp_weights(64, gall, galb, False, lonlat=True)
+    print(hpids.shape, weights.shape)
+    ebvout = np.zeros(N)
+    distout = np.zeros(N)
+    for i in range(hpids.shape[1]):
+        pid = hpids[:,i]; print(pid)
+        print(pid)
+        w = weights[:,i]; print(w)
+        distID = np.argmin(np.abs(dist[i]-ebvmap.dists[pid]),axis=1)
+        print(distID)
+        ebvout_i = ebvmap.ebvs[pid,distID]
+        print("ebv:",ebvout_i)
+        ebvout_i = np.sum(ebvout_i*w)
+        ebvout[i] = ebvout_i
+        distout[i] = np.sum(ebvmap.dists[pid,distID]*w)
+    
+    return ebvout, distout
