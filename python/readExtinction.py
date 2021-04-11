@@ -311,7 +311,10 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         # We do distance modulus = (m-M) - A_x, and calculate the
         # distance from the result. We do this for every sightline
         # at once.
-        ebvsMax = self.R_x[sfilt] * self.ebvs[:,-1]
+        if ipix is not None:
+            ebvsMax = self.R_x[sfilt] * self.ebvs[ipix,-1]
+        else:
+            ebvsMax = self.R_x[sfilt] * self.ebvs[:,-1]
         distModsFar = dmagVec - ebvsMax
 
         distsFar = 10.0**(0.2*distModsFar + 1.)
@@ -321,7 +324,7 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
             
         # ... Let's return both the closest distances and the map of
         # (m-M), since the user might want both.
-        return distsClosest, mMinusM, bFar
+        return distsClosest, mMinusM[:,iMin][0], bFar
 
     def showMollview(self, hparr=np.array([]), fignum=4, \
                      subplot=(1,1,1), figsize=(10,6),\
