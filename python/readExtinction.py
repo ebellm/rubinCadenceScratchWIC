@@ -303,7 +303,7 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         bFar = iMin == self.dists[ipix].shape[-1]-1
 
         if not extrapolateFar:
-            return distsClosest, mMinusM, bFar
+            return distsClosest, mMinusM[:,iMin][0], bFar
         
         # For distances beyond the max, we use the maximum E(B-V)
         # along the line of sight to compute the distance.
