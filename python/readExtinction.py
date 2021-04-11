@@ -750,7 +750,7 @@ def testInteprolateProfile(gall,galb,dist,ebvmap=None):
     dist = np.atleast_1d(dist)
     N = len(dist)
     
-    coo = SkyCoord(gall*u.deg,galb*u.deg)
+    coo = SkyCoord(gall*u.deg,galb*u.deg,frame='galactic')
     RAs = coo.icrs.ra.deg
     DECs = coo.icrs.dec.deg
     hpids, weights = hp.get_interp_weights(64, RAs, DECs, True, lonlat=True)
