@@ -758,16 +758,13 @@ def testInteprolateProfile(gall,galb,dist,ebvmap=None):
     print(hpids.shape, weights.shape)
     ebvout = np.zeros(N)
     distout = np.zeros(N)
-    for i in range(hpids.shape[1]):
-        pid = hpids[:,i]; print(pid)
-        print(pid)
-        w = weights[:,i]; print(w)
-        distID = np.argmin(np.abs(dist[i]-ebvmap.dists[pid]),axis=1)
-        print(distID)
-        ebvout_i = ebvmap.ebvs[pid,distID]
-        print("ebv:",ebvout_i)
-        ebvout_i = np.sum(ebvout_i*w)
-        ebvout[i] = ebvout_i
-        distout[i] = np.sum(ebvmap.dists[pid,distID]*w)
+    for i in range(hpids.shape[0]):
+        pid = hpids[i]
+        w = weights[i]
+        distID = np.argmin(np.abs(ebvmap.dists[pid]-dist),axis=1)
+        ebvout_i = ebvmap.ebvs[pid,distID] * w
+        ebvout += ebvout_i
+        distout_i = ebvmap.dists[pid,distID] * w
+        distout += distout_i
     
     return ebvout, distout
