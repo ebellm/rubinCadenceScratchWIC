@@ -747,7 +747,7 @@ def testInteprolateProfile(gall,galb,dist,ebvmap=None):
     
     gall = np.atleast_1d(gall)
     galb = np.atleast_1d(galb)
-    dist = np.atleast_1d(dist)
+    dist = np.atleast_2d(dist).T # required for subtraction to 2d array with shape (N,N_samples)
     N = len(dist)
     
     coo = SkyCoord(gall*u.deg,galb*u.deg,frame='galactic')
