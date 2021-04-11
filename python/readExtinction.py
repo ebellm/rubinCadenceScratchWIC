@@ -229,6 +229,8 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
 
         sfilt = filter at which we want deltamag
 
+        ipix = Pixels for which to perform the evaluation.
+
         extrapolateFar - for distances beyond the maximum
         distance in the model, treat the extinction as constant beyond
         that maximum distance and compute the distance at which
