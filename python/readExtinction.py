@@ -300,7 +300,7 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         # 2021-04-09: started implementing distances at or beyond the
         # maximum distance. Points for which the closest delta-mag is
         # in the maximum distance bin are picked.
-        bFar = iMin == self.dists.shape[-1]-1
+        bFar = iMin == self.dists[ipix].shape[-1]-1
 
         if not extrapolateFar:
             return distsClosest, mMinusM, bFar
