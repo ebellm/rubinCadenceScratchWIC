@@ -755,7 +755,6 @@ def testInteprolateProfile(gall,galb,dist,ebvmap=None):
     DECs = coo.icrs.dec.deg
     hpids, weights = hp.get_interp_weights(64, RAs, DECs, ebvmap.nested, lonlat=True)
     # hpids, weights = hp.get_interp_weights(64, gall, galb, False, lonlat=True)
-    print(hpids.shape, weights.shape)
     ebvout = np.zeros(N)
     distout = np.zeros(N)
     for i in range(hpids.shape[0]):
