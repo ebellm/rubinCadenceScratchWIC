@@ -726,6 +726,21 @@ def testGetOneSightline(l=0., b=0., dpc=3000., \
 
 
 def testInteprolateProfile(gall,galb,dist,ebvmap=None):
+    """Function demonstrating interpolation over nearby sightlines
+    to determine EBV at a given (l,b). The value of EBV will be taken
+    from the closest distance bins.
+
+    Args:
+        gall (float or iterable): Galactic longitude(s).
+        galb (float or iterable): Galactic latitude
+        dist (float or iterable): Distance for EBV dtermination.
+        ebvmap (ebv3d, optional): Instance of the ebv3d class to be used. 
+            If None, a new one will be initiaized. Defaults to None.
+
+    Returns:
+        array, array: Balue(s) of EBV and corresponding distance.
+    """
+    
     if ebvmap is None:
         ebvmap = ebv3d()
         ebvmap.loadMap()
