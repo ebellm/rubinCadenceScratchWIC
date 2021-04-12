@@ -361,7 +361,8 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
                      coord=['C','G'], norm='linear', \
                      gratColor='0.2', gratAlpha=0.5, \
                      margins=(0.05, 0.05, 0.05, 0.05), \
-                     fontsize=-1):
+                     fontsize=-1, \
+                     minval=None, maxval=None):
 
 
         """Plot mollweide view using customized colorbar ticks. Returns the
@@ -381,6 +382,8 @@ figure. Arguments:
         colornap)
 
         fontsize = desired colorbar label font size. Set to negative to accept defaults
+
+        minval, maxval = minmax values to show
 
         """
 
@@ -417,7 +420,8 @@ figure. Arguments:
         hp.mollview(hparr, fignum, coord=coord, nest=self.nested, \
                     sub=subplot, \
                     title=sTitle, unit=sUnit, cmap=cmap, norm=norm, \
-                    margins=margins)
+                    margins=margins, \
+                    min=minval, max=maxval)
 
         # Now we use Alessandro's nice method for handling the
         # colorbar:
