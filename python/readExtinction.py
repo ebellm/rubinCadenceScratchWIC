@@ -360,7 +360,8 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
                      sSuptitle='', \
                      coord=['C','G'], norm='linear', \
                      gratColor='0.2', gratAlpha=0.5, \
-                     margins=(0.05, 0.05, 0.05, 0.05) ):
+                     margins=(0.05, 0.05, 0.05, 0.05), \
+                     fontsize=-1):
 
 
         """Plot mollweide view using customized colorbar ticks. Returns the
@@ -379,6 +380,8 @@ figure. Arguments:
         nticks = number of ticks to use (TODO: set this from the
         colornap)
 
+        fontsize = desired colorbar label font size. Set to negative to accept defaults
+
         """
 
         # the number of ticks and fontsize are overridden with
@@ -393,11 +396,16 @@ figure. Arguments:
 
         # Set the number of ticks and the fontsize, allowing for
         # reversed colormaps
+        labelsize = 8 # default
         cmapStem = cmap.split('_r')[0]
         if cmapStem in Dnticks.keys():
             numTicks = Dnticks[cmapStem]
             labelsize = Dlsize[cmapStem]
-        
+
+        # allow user-input override fontsize for labels
+        if fontsize > 0:
+            labelsize=fontsize
+
         # Is the input sensible?
         if np.size(hparr) < 1:
             return None
