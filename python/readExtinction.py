@@ -282,6 +282,9 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         iMin = np.argmin(np.abs(mMinusM - dmagVec[:,np.newaxis]), axis=1)
         iExpand = np.expand_dims(iMin, axis=-1)
 
+        # select only m-M at needed distance
+        mMinusM = np.take_along_axis(mMinusM, iMin[:,np.newaxis], -1).flatten()
+
         # now find the closest distance...
         if ipix is not None:
             distsClosest = np.take_along_axis(self.dists[ipix], \
@@ -303,7 +306,7 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         bFar = iMin == self.dists[ipix].shape[-1]-1
 
         if not extrapolateFar:
-            return distsClosest, mMinusM[:,iMin][0], bFar
+            return distsClosest, mMinusM, bFar
         
         # For distances beyond the max, we use the maximum E(B-V)
         # along the line of sight to compute the distance.
@@ -324,7 +327,7 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
             
         # ... Let's return both the closest distances and the map of
         # (m-M), since the user might want both.
-        return distsClosest, mMinusM[:,iMin][0], bFar
+        return distsClosest, mMinusM, bFar
 
     def showMollview(self, hparr=np.array([]), fignum=4, \
                      subplot=(1,1,1), figsize=(10,6),\
