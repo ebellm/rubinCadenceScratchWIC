@@ -329,6 +329,28 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         # ... Let's return both the closest distances and the map of
         # (m-M), since the user might want both.
         return distsClosest, mMinusM, bFar
+    
+    def getInterpolatedProfile(self, gall, galb, dist):
+        gall = np.atleast_1d(gall)
+        galb = np.atleast_1d(galb)
+        dist = np.atleast_2d(dist).T # required for subtraction to 2d array with shape (N,N_samples)
+        N = len(dist)
+        
+        coo = SkyCoord(gall*u.deg,galb*u.deg,frame='galactic')
+        RAs = coo.icrs.ra.deg
+        DECs = coo.icrs.dec.deg
+        hpids, weights = hp.get_interp_weights(self.nside, RAs, DECs, self.nested, lonlat=True)
+        # hpids, weights = hp.get_interp_weights(64, gall, galb, False, lonlat=True)
+        ebvout = np.zeros(N)
+        distout = np.zeros(N)
+        for i in range(hpids.shape[0]):
+            pid = hpids[i]
+            w = weights[i]
+            distID = np.argmin(np.abs(self.dists[pid]-dist),axis=1)
+            ebvout_i = self.ebvs[pid,distID] * w
+            ebvout += ebvout_i
+            distout_i = self.dists[pid,distID] * w
+            distout += distout_i
 
     def showMollview(self, hparr=np.array([]), fignum=4, \
                      subplot=(1,1,1), figsize=(10,6),\
@@ -813,25 +835,6 @@ def testInteprolateProfile(gall,galb,dist,ebvmap=None):
         ebvmap = ebv3d()
         ebvmap.loadMap()
     
-    gall = np.atleast_1d(gall)
-    galb = np.atleast_1d(galb)
-    dist = np.atleast_2d(dist).T # required for subtraction to 2d array with shape (N,N_samples)
-    N = len(dist)
-    
-    coo = SkyCoord(gall*u.deg,galb*u.deg,frame='galactic')
-    RAs = coo.icrs.ra.deg
-    DECs = coo.icrs.dec.deg
-    hpids, weights = hp.get_interp_weights(64, RAs, DECs, ebvmap.nested, lonlat=True)
-    # hpids, weights = hp.get_interp_weights(64, gall, galb, False, lonlat=True)
-    ebvout = np.zeros(N)
-    distout = np.zeros(N)
-    for i in range(hpids.shape[0]):
-        pid = hpids[i]
-        w = weights[i]
-        distID = np.argmin(np.abs(ebvmap.dists[pid]-dist),axis=1)
-        ebvout_i = ebvmap.ebvs[pid,distID] * w
-        ebvout += ebvout_i
-        distout_i = ebvmap.dists[pid,distID] * w
-        distout += distout_i
+    ebvout, distout = ebvmap.getInterpolatedProfile(gall, galb, dist)
     
     return ebvout, distout
