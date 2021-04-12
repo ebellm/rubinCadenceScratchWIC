@@ -198,7 +198,7 @@ distance"""
                 
         return ebvRet, lTest, bTest
 
-    def getDeltaMag(self, sFilt='r'):
+    def getDeltaMag(self, sFilt='r',ipix=None):
 
         """Converts the reddening map into an (m-m0) map for the given
         filter"""
@@ -206,11 +206,16 @@ distance"""
         if not sFilt in self.R_x.keys():
             sFilt = 'r'
         Rx = self.R_x[sFilt]
-        mMinusm0 = self.dmods[np.newaxis,:] + Rx * self.ebvs
+
+        if ipix is not None:
+            mMinusm0 = self.dmods[np.newaxis,ipix] + Rx * self.ebvs[ipix,:]
+            # make 3d so that form the outside nothing changes
+        else:
+            mMinusm0 = self.dmods[np.newaxis,:] + Rx * self.ebvs
 
         return mMinusm0[0]
 
-    def getDistanceAtMag(self, deltamag=15.2, sfilt='r', \
+    def getDistanceAtMag(self, deltamag=15.2, sfilt='r', ipix=None, \
                          extrapolateFar=True):
 
         """Returns the distances at which the combination of distance and
@@ -223,6 +228,8 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         (i.e. hp.nside2npix(64) )
 
         sfilt = filter at which we want deltamag
+
+        ipix = Pixels for which to perform the evaluation.
 
         extrapolateFar - for distances beyond the maximum
         distance in the model, treat the extinction as constant beyond
@@ -242,13 +249,21 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         distance indicated by a sight line was beyond the range of
         validity of the extinction model.
 
+            If ipix is provided, either as a single int or a list|array or
+            ints representing Healpix pixel indices, only the number of
+            pixels requested will be queried. Arrays will be returne in any
+            case, even when one single pixel is requested.
         """
 
         # A little bit of parsing... if deltamag is a scalar,
         # replicate it into an array. Otherwise just reference the
         # array that was passed in. For the moment, trust the user to
         # have inputted a deltamag vector of the right shape.
-        npix = self.ebvs.shape[0]
+        if ipix is not None:
+            ipix = np.atleast_1d(ipix)
+            npix = ipix.shape[0]
+        else:
+            npix = self.ebvs.shape[0]
         if np.isscalar(deltamag):
             dmagVec = np.repeat(deltamag, npix)
         else:
@@ -260,23 +275,38 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
             return np.array([]), np.array([]), np.array([])
 
         # Now we need apparent minus absolute magnitude:
-        mMinusM = self.getDeltaMag(sfilt)
+        mMinusM = self.getDeltaMag(sfilt,ipix=ipix)
 
         # Now we find elements in each row that are closest to the
         # requested deltamag:
         iMin = np.argmin(np.abs(mMinusM - dmagVec[:,np.newaxis]), axis=1)
         iExpand = np.expand_dims(iMin, axis=-1)
 
+        # select only m-M at needed distance
+        mMinusM = np.take_along_axis(mMinusM, iMin[:,np.newaxis], -1).flatten()
+
         # now find the closest distance...
-        distsClosest = np.take_along_axis(self.dists, \
-                                          iExpand, \
-                                          axis=-1).squeeze()
+        if ipix is not None:
+            distsClosest = np.take_along_axis(self.dists[ipix], \
+                                              iExpand, \
+                                              axis=-1).squeeze()
+            # To keep things similar to the case of querying the whole map,
+            #  we need to return an array also in case ipix is a single pixel.
+            distsClosest = np.atleast_1d(distsClosest)
+            # if npix>1:
+            #     distsClosest = distsClosest.squeeze()
+        else:
+            distsClosest = np.take_along_axis(self.dists, \
+                                              iExpand, \
+                                              axis=-1).squeeze()
 
         # 2021-04-09: started implementing distances at or beyond the
         # maximum distance. Points for which the closest delta-mag is
         # in the maximum distance bin are picked.
-        bFar = iMin == self.dists.shape[-1]-1
-
+        if ipix is not None:
+            bFar = iMin == self.dists[ipix].shape[-1]-1
+        else:
+            bFar = iMin == self.dists.shape[-1]-1
         if not extrapolateFar:
             return distsClosest, mMinusM, bFar
         
@@ -286,7 +316,10 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         # We do distance modulus = (m-M) - A_x, and calculate the
         # distance from the result. We do this for every sightline
         # at once.
-        ebvsMax = self.R_x[sfilt] * self.ebvs[:,-1]
+        if ipix is not None:
+            ebvsMax = self.R_x[sfilt] * self.ebvs[ipix,-1]
+        else:
+            ebvsMax = self.R_x[sfilt] * self.ebvs[:,-1]
         distModsFar = dmagVec - ebvsMax
 
         distsFar = 10.0**(0.2*distModsFar + 1.)
