@@ -206,7 +206,6 @@ distance"""
         if not sFilt in self.R_x.keys():
             sFilt = 'r'
         Rx = self.R_x[sFilt]
-
         if ipix is not None:
             mMinusm0 = self.dmods[np.newaxis,ipix] + Rx * self.ebvs[ipix,:]
             # make 3d so that form the outside nothing changes
@@ -792,3 +791,47 @@ def testGetOneSightline(l=0., b=0., dpc=3000., \
         print("INFO: nearest b:", bTest)
         print("INFO: returned E(B-V)", ebvHere)
         print("INFO: returned distances:", distHere)
+
+
+def testInteprolateProfile(gall,galb,dist,ebvmap=None):
+    """Function demonstrating interpolation over nearby sightlines
+    to determine EBV at a given (l,b). The value of EBV will be taken
+    from the closest distance bins.
+
+    Args:
+        gall (float or iterable): Galactic longitude(s).
+        galb (float or iterable): Galactic latitude
+        dist (float or iterable): Distance for EBV dtermination.
+        ebvmap (ebv3d, optional): Instance of the ebv3d class to be used. 
+            If None, a new one will be initiaized. Defaults to None.
+
+    Returns:
+        array, array: Balue(s) of EBV and corresponding distance.
+    """
+    
+    if ebvmap is None:
+        ebvmap = ebv3d()
+        ebvmap.loadMap()
+    
+    gall = np.atleast_1d(gall)
+    galb = np.atleast_1d(galb)
+    dist = np.atleast_2d(dist).T # required for subtraction to 2d array with shape (N,N_samples)
+    N = len(dist)
+    
+    coo = SkyCoord(gall*u.deg,galb*u.deg,frame='galactic')
+    RAs = coo.icrs.ra.deg
+    DECs = coo.icrs.dec.deg
+    hpids, weights = hp.get_interp_weights(64, RAs, DECs, ebvmap.nested, lonlat=True)
+    # hpids, weights = hp.get_interp_weights(64, gall, galb, False, lonlat=True)
+    ebvout = np.zeros(N)
+    distout = np.zeros(N)
+    for i in range(hpids.shape[0]):
+        pid = hpids[i]
+        w = weights[i]
+        distID = np.argmin(np.abs(ebvmap.dists[pid]-dist),axis=1)
+        ebvout_i = ebvmap.ebvs[pid,distID] * w
+        ebvout += ebvout_i
+        distout_i = ebvmap.dists[pid,distID] * w
+        distout += distout_i
+    
+    return ebvout, distout
