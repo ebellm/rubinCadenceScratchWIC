@@ -198,6 +198,24 @@ distance"""
                 
         return ebvRet, lTest, bTest
 
+    def getMaxDistDeltaMag(self, dmagVec, sfilt='r', ipix=None):
+        """Compute the maximum distance for an apparent m-M using the maximum
+        value of extinction from the map.
+        """
+
+        # We do distance modulus = (m-M) - A_x, and calculate the
+        # distance from the result. We do this for every sightline
+        # at once.
+        if ipix is not None:
+            ebvsMax = self.R_x[sfilt] * self.ebvs[ipix,-1]
+        else:
+            ebvsMax = self.R_x[sfilt] * self.ebvs[:,-1]
+        distModsFar = dmagVec - ebvsMax
+
+        distsFar = 10.0**(0.2*distModsFar + 1.)
+
+        return distsFar
+
     def getDeltaMag(self, sFilt='r',ipix=None):
 
         """Converts the reddening map into an (m-m0) map for the given
@@ -312,20 +330,11 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         # For distances beyond the max, we use the maximum E(B-V)
         # along the line of sight to compute the distance.
 
-        # We do distance modulus = (m-M) - A_x, and calculate the
-        # distance from the result. We do this for every sightline
-        # at once.
-        if ipix is not None:
-            ebvsMax = self.R_x[sfilt] * self.ebvs[ipix,-1]
-        else:
-            ebvsMax = self.R_x[sfilt] * self.ebvs[:,-1]
-        distModsFar = dmagVec - ebvsMax
-
-        distsFar = 10.0**(0.2*distModsFar + 1.)
+        distsFar = self.getMaxDistDeltaMag(mMinusM, sfilt, ipix)
 
         # Now we swap in the far distances
         distsClosest[bFar] = distsFar[bFar]
-            
+
         # ... Let's return both the closest distances and the map of
         # (m-M), since the user might want both.
         return distsClosest, mMinusM, bFar
