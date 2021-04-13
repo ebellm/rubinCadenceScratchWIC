@@ -312,6 +312,20 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
         # For distances beyond the max, we use the maximum E(B-V)
         # along the line of sight to compute the distance.
 
+        distsFar = self.getMaxDistDeltaMag(mMinusM, sfilt, ipix)
+
+            # Now we swap in the far distances
+        distsClosest[bFar] = distsFar[bFar]
+
+        # ... Let's return both the closest distances and the map of
+        # (m-M), since the user might want both.
+        return distsClosest, mMinusM, bFar
+    
+    def getMaxDistDeltaMag(self, dmagVec, sfilt='r', ipix=None):
+        """Compute the maximum distance for an apparent m-M using the maximum
+        value of extinction from the map.
+        """
+
         # We do distance modulus = (m-M) - A_x, and calculate the
         # distance from the result. We do this for every sightline
         # at once.
@@ -323,13 +337,9 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
 
         distsFar = 10.0**(0.2*distModsFar + 1.)
 
-        # Now we swap in the far distances
-        distsClosest[bFar] = distsFar[bFar]
-            
-        # ... Let's return both the closest distances and the map of
-        # (m-M), since the user might want both.
-        return distsClosest, mMinusM, bFar
-    
+        return distsFar
+
+
     def getInterpolatedProfile(self, gall, galb, dist):
         gall = np.atleast_1d(gall)
         galb = np.atleast_1d(galb)
