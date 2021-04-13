@@ -332,7 +332,7 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
 
         distsFar = self.getMaxDistDeltaMag(mMinusM, sfilt, ipix)
 
-            # Now we swap in the far distances
+        # Now we swap in the far distances
         distsClosest[bFar] = distsFar[bFar]
 
         # ... Let's return both the closest distances and the map of
