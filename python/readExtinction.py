@@ -24,6 +24,17 @@ import matplotlib.pylab as plt
 from matplotlib.ticker import LogLocator
 plt.ion()
 
+import requests
+
+# There is no clear way of knowing if we are inside a datalab server or not
+# As a workaround, we try to import the datalab package, if we fail we certainly cannot 
+# use the datalab functionality
+try:
+    from dl import storeClient as sc
+    datalab=True
+except:
+    datalab=False
+
 py_folder = os.path.dirname(os.path.abspath(__file__))
 extmaps_dir = os.path.join(os.path.dirname(py_folder), 'extmaps')
 
@@ -39,13 +50,16 @@ but currently does nothing with it."""
 
     default_map = os.path.join(extmaps_dir,'merged_ebv3d_nside64.fits')
     
-    def __init__(self, pathMap=None, Verbose=True):
+    def __init__(self, pathMap=None, use_datalab=False, Verbose=True):
 
         # path to map
         if pathMap is None:
             self.pathMap = self.default_map
         else:
             self.pathMap = pathMap[:]
+        
+        # We have to trust the user to correctly set the flag when using datalab
+        self.use_datalab = use_datalab
 
         # Arrays for the map
         self.hpids = np.array([])
@@ -78,14 +92,32 @@ but currently does nothing with it."""
     def loadMap(self):
 
         """Loads the extinction map"""
-
-        if not os.access(self.pathMap, os.R_OK):
-            if self.Verbose:
+        
+        # If importing the datalab package succeeded we can try to query the public map file
+        # WARNING: this works even locally, the datalab package will just download the map
+        if self.use_datalab:
+            if not datalab:
+                raise ValueError("The datalab Python package is not available.")
+            map_name = os.path.split(self.pathMap)[1]
+            # On the public space there should be only the compressed maps
+            if not map_name.endswith('.gz'):
+                map_name = map_name + '.gz'
+            map_path = 'thalos12://public/{}'.format(map_name)
+            print("Loading map from datalab.")
+            try:
+                hdul = fits.open(sc.get(map_path,mode='fileobj'))
+            except requests.exceptions.MissingSchema:
+                # This exception is raised when the file does not exist on datalab, as far as I have understood
+                raise FileNotFound("The map {} was not found.")
+        else:
+            print("Loading map from file.")
+            if not os.access(self.pathMap, os.R_OK):
+                if self.Verbose:
                 print("loadMap WARN - cannot read path %s" \
-                      % (self.pathMap))
-            return
-
-        hdul = fits.open(self.pathMap)
+                        % (self.pathMap))
+                return
+            hdul = fits.open(self.pathMap)
+        
         self.hdr = hdul[0].header
 
         # now populate the arrays in turn
