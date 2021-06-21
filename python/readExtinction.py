@@ -50,16 +50,13 @@ but currently does nothing with it."""
 
     default_map = os.path.join(extmaps_dir,'merged_ebv3d_nside64.fits')
     
-    def __init__(self, pathMap=None, use_datalab=False, Verbose=True):
+    def __init__(self, pathMap=None, Verbose=True):
 
         # path to map
         if pathMap is None:
             self.pathMap = self.default_map
         else:
             self.pathMap = pathMap[:]
-        
-        # We have to trust the user to correctly set the flag when using datalab
-        self.use_datalab = use_datalab
 
         # Arrays for the map
         self.hpids = np.array([])
@@ -89,34 +86,72 @@ but currently does nothing with it."""
         # verbose?
         self.Verbose = Verbose
         
-    def loadMap(self):
+    def loadMap(self, use_local=None, use_sciserver=None, use_datalab=None):
 
         """Loads the extinction map"""
-        
-        # If importing the datalab package succeeded we can try to query the public map file
-        # WARNING: this works even locally, the datalab package will just download the map
-        if self.use_datalab:
-            if not datalab:
-                raise ValueError("The datalab Python package is not available.")
-            map_name = os.path.split(self.pathMap)[1]
-            # On the public space there should be only the compressed maps
-            if not map_name.endswith('.gz'):
-                map_name = map_name + '.gz'
-            map_path = 'thalos12://public/{}'.format(map_name)
-            print("Loading map from datalab.")
+
+        # If all kwargs are None, to load the map there is a priority chain.
+        # 1) Check the map (default or user specified) exists in the extmap folder of the repository.
+        #    Must check for real map, not gitlfs placeholder.
+        # 2) Check Sciserver public folder
+        # 3) Check datalab public folder (thalos12) -- this can be used also locally!
+
+        print("Loading the map.")
+
+        # Keep track of whether the map was successfully loaded at one of the steps
+        hdul=None
+
+        # Check local map
+        if use_local or use_local is None:
             try:
-                hdul = fits.open(sc.get(map_path,mode='fileobj'))
-            except requests.exceptions.MissingSchema:
-                # This exception is raised when the file does not exist on datalab, as far as I have understood
-                raise FileNotFound("The map {} was not found.")
-        else:
-            print("Loading map from file.")
-            if not os.access(self.pathMap, os.R_OK):
+                hdul = fits.open(self.pathMap)
+            except OSError:
+                if use_local:
+                    raise FileNotFoundError('The map file {} could not be loaded.'.format(self.pathMap))
                 if self.Verbose:
-                print("loadMap WARN - cannot read path %s" \
-                        % (self.pathMap))
-                return
-            hdul = fits.open(self.pathMap)
+                    print("The map could not be loaded from {}.".format(self.pathMap))
+        
+        # Check Sciserver public/shared folder
+        if hdul is None and (use_sciserver or use_sciserver is None):
+            map_name = os.path.split(self.pathMap)[1]
+            if not map_name.endswith('.gz'):
+                    map_name = map_name + '.gz'
+            map_path = os.path.join('/home/idies/workspace/lsst_cadence/LSST_Shared/extmaps', map_name)
+            try:
+                hdul = fits.open(map_name)
+            except OSError:
+                if use_sciserver:
+                    raise FileNotFoundError('The map file {} could not be loaded.'.format(map_path))
+                if self.Verbose:
+                    print("The map could not be loaded from the SciServer shared folder.")
+        
+        # Check datalab public folder
+        if hdul is None and (use_datalab or use_datalab is None):
+            if not datalab:
+                if self.use_datalab:
+                    raise ValueError("The datalab Python package is not available.")
+                if self.Verbose:
+                    print("The datalab package is not installed, skipping it.")
+            else:
+                # If importing the datalab package succeeded we can try to query the public map file
+                # WARNING: this works even locally, the datalab package will just download the map
+                map_name = os.path.split(self.pathMap)[1]
+                # On the public space there should be only the compressed maps
+                if not map_name.endswith('.gz'):
+                    map_name = map_name + '.gz'
+                map_path = 'thalos12://public/{}'.format(map_name)
+                try:
+                    hdul = fits.open(sc.get(map_path,mode='fileobj'))
+                except requests.exceptions.MissingSchema:
+                    # This exception is raised when the file does not exist on datalab, as far as I have understood
+                    if use_datalab:
+                        raise FileNotFoundError("The map {} could not be loaded.".format(map_path))
+                    if self.Verbose:
+                        print("The map could not be loaded from the Data Lab shared folder.")
+        
+        if hdul is None:
+            raise FileNotFoundError("The map could not be loaded!")
+        print("Loaded the map.")
         
         self.hdr = hdul[0].header
 
