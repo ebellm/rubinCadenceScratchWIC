@@ -371,7 +371,7 @@ extinction produces the input magnitude difference (m-M) = deltamag. Arguments:
                      gratColor='0.2', gratAlpha=0.5, \
                      margins=(0.05, 0.05, 0.05, 0.05), \
                      fontsize=-1, \
-                     minval=None, maxval=None):
+                     minval=None, maxval=None, sfilt='r'):
 
 
         """Plot mollweide view using customized colorbar ticks. Returns the
@@ -393,6 +393,8 @@ figure. Arguments:
         fontsize = desired colorbar label font size. Set to negative to accept defaults
 
         minval, maxval = minmax values to show
+
+        sfilt = filter string if rescaling colorbar labels
 
         """
 
@@ -435,24 +437,31 @@ figure. Arguments:
         # Now we use Alessandro's nice method for handling the
         # colorbar:
         cbar =  plt.gca().images[-1].colorbar
-        cmin, cmax = getColorbarLimits(cbar)
 
-        # The colorbar has log scale, which means that cmin=0 is not valid
-        # this should be handled by mollview, if not cmin is replaced by the
-        # smallest non-zero value of the array vecSho
-        if cmin==0:
-            cmin=np.amin(sfilt[sfilt!=0])
-        # Set tick positions and labels
-        cmap_ticks = np.linspace(cmin,cmax,num=numTicks)
-        cbar.set_ticks(cmap_ticks,True)
-        cmap_labels = ["{:5.0f}".format(t) for t in cmap_ticks]
-        cbar.set_ticklabels(cmap_labels)
-        cbar.ax.tick_params(labelsize=labelsize) 
-        # Change the position of the colorbar label
-        text = [c for c in cbar.ax.get_children() \
-                if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
-        print(text.get_position())
-        text.set_y(-3.) # valid for figsize=(8,6)
+        # 2021-11-04 the following methods will only work if cbar is
+        # not None (as I am finding when using rubin_sim). So:
+        if cbar is not None:
+
+            cmin, cmax = getColorbarLimits(cbar)
+
+            # The colorbar has log scale, which means that cmin=0 is
+            # not valid this should be handled by mollview, if not
+            # cmin is replaced by the smallest non-zero value of the
+            # array vecSho
+            if cmin==0:
+                cmin=np.amin(sfilt[sfilt!=0])
+                # Set tick positions and labels
+            cmap_ticks = np.linspace(cmin,cmax,num=numTicks)
+
+            cbar.set_ticks(cmap_ticks,True)
+            cmap_labels = ["{:5.0f}".format(t) for t in cmap_ticks]
+            cbar.set_ticklabels(cmap_labels)
+            cbar.ax.tick_params(labelsize=labelsize) 
+            # Change the position of the colorbar label
+            text = [c for c in cbar.ax.get_children() \
+                        if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
+            # print(text.get_position())
+            text.set_y(-3.) # valid for figsize=(8,6)
 
         # now show a graticule
         hp.graticule(color=gratColor, alpha=gratAlpha)
