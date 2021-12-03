@@ -133,3 +133,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Schultheis high resolution map
+extmaps/Schultheis_highres
