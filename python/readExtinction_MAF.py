@@ -39,7 +39,7 @@ extmaps_dir = os.path.join(os.path.dirname(py_folder), "extmaps")
 
 class ebv3d(object):
 
-    default_map = os.path.join(extmaps_dir, "merged_ebv3d_nside64.fits.gz")
+    default_map = os.path.join(extmaps_dir, "merged_ebv3d_nside64_defaults.fits.gz")
 
     def __init__(self, mapPath: str = None, load=False, Verbose=True) -> None:
         """Class that loads and manipulates a merged 3d extinction map.
