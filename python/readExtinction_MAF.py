@@ -16,7 +16,7 @@ import requests
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from rubin_sim.maf.slicers import baseSlicer
-from rubin_sim.maf.maps import BaseMap
+from rubin_sim.maf.maps import baseMap
 
 # To know if we are inside datalab, check the host name
 hostname = socket.gethostname()
