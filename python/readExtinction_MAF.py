@@ -145,8 +145,9 @@ class ebv3d(object):
         if hdul is None and (use_datalab or use_datalab is None):
             if self.Verbose:
                 print("Loading the map from Data Lab.")
-            if not datalab_available and use_datalab:
-                raise ImportError("The `noaodatalab` package is not available, cannot load the map.")
+            if not datalab_available:
+                if use_datalab:
+                    raise ImportError("The `noaodatalab` package is not available, cannot load the map.")
             else:
                 # If importing the datalab package succeeded we can try to query the public map file on Data
                 # Lab space.
