@@ -34,6 +34,7 @@ except ImportError:
     datalab_available = False
 
 py_folder = os.path.dirname(os.path.abspath(__file__))
+py_folder = py_folder.replace('/home/jail',"") # for datalab, otherwise fails
 extmaps_dir = os.path.join(os.path.dirname(py_folder), "extmaps")
 
 
