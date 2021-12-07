@@ -37,7 +37,7 @@ py_folder = os.path.dirname(os.path.abspath(__file__))
 extmaps_dir = os.path.join(os.path.dirname(py_folder), "extmaps")
 
 
-class ebv3d(BaseMap):
+class ebv3d(object):
 
     default_map = os.path.join(extmaps_dir, "merged_ebv3d_nside64.fits.gz")
 
@@ -543,6 +543,22 @@ class ebv3d(BaseMap):
             margins=margins,
         )
 
+class ebv3dMap(baseMap):
+
+    def __init__(self, extmap: ebv3d = None, mapPath=None):
+        if extmap is None:
+            extmap = ebv3d(mapPath=mapPath)
+            if mapPath is not None:
+                extmap.loadMap(use_local=True)
+        else:
+            if not extmap.initialized:
+                raise ValueError("The class has not been initialized.")
+        
+        self.extmap=extmap
+        
+        ### MAF SETTINGS
+        self.keynames = ["ebv"]
+
     def run(self, slicePoints: baseSlicer, dist=None) -> baseSlicer:
         """Entry point for MAF.
 
@@ -576,5 +592,69 @@ class ebv3d(BaseMap):
         ebv, dist = self.getInterpolatedEBV(gall, galb, slicePoints["dist"])
 
         slicePoints["ebv"] = ebv
+
+        return slicePoints
+
+class MaxDistDeltaMagMap(baseMap):
+
+    def __init__(self, extmap: ebv3d = None, mapPath=None):
+        if extmap is None:
+            extmap = ebv3d(mapPath=mapPath)
+            if mapPath is not None:
+                extmap.loadMap(use_local=True)
+        else:
+            if not extmap.initialized:
+                raise ValueError("The class has not been initialized.")
+
+        self.extmap=extmap
+
+        ### MAF SETTINGS
+        self.keynames = ["maxdist"]
+
+    def run(self, slicePoints: baseSlicer) -> baseSlicer:
+        """Entry point for MAF.
+
+        Args:
+            slicePoints (baseSlicer): Slice points to use.
+
+        Returns:
+            baseSlicer: Slicer with E(B-V) for each point.
+        """
+
+        maxdist = self.extmap.getMaxDistDeltaMag(slicePoints['dmag'], slicePoints['sfilt'], slicePoints['sid'])
+
+        slicePoints["maxdist"] = maxdist
+
+        return slicePoints
+
+class DistanceAtMAgMap(baseMap):
+
+    def __init__(self, extmap: ebv3d = None, mapPath=None):
+        if extmap is None:
+            extmap = ebv3d(mapPath=mapPath)
+            if mapPath is not None:
+                extmap.loadMap(use_local=True)
+        else:
+            if not extmap.initialized:
+                raise ValueError("The class has not been initialized.")
+
+        self.extmap=extmap
+
+        ### MAF SETTINGS
+        self.keynames = ["dist"]
+
+    def run(self, slicePoints: baseSlicer) -> baseSlicer:
+        """Entry point for MAF.
+
+        Args:
+            slicePoints (baseSlicer): Slice points to use.
+
+        Returns:
+            baseSlicer: Slicer with E(B-V) for each point.
+        """
+
+        maxdist = self.extmap.getDistanceAtMag(slicePoints['mag'], slicePoints['sfilt'], slicePoints['sid'])
+
+        slicePoints["maxdist"] = maxdist
 
         return slicePoints
