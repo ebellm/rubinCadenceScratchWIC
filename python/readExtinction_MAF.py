@@ -16,7 +16,7 @@ import requests
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from rubin_sim.maf.slicers import baseSlicer
-from rubin_sim.maf.maps import baseMap
+from rubin_sim.maf.maps.baseMap import BaseMap
 
 # To know if we are inside datalab, check the host name
 hostname = socket.gethostname()
@@ -543,7 +543,7 @@ class ebv3d(object):
         )
 
 
-class ebv3dMap(baseMap):
+class ebv3dMap(BaseMap):
     def __init__(self, extmap: ebv3d = None, mapPath=None):
         if extmap is None:
             extmap = ebv3d(mapPath=mapPath)
@@ -595,7 +595,7 @@ class ebv3dMap(baseMap):
         return slicePoints
 
 
-class MaxDistDeltaMagMap(baseMap):
+class MaxDistDeltaMagMap(BaseMap):
     def __init__(self, extmap: ebv3d = None, mapPath=None):
         if extmap is None:
             extmap = ebv3d(mapPath=mapPath)
@@ -629,7 +629,7 @@ class MaxDistDeltaMagMap(baseMap):
         return slicePoints
 
 
-class DistanceAtMAgMap(baseMap):
+class DistanceAtMAgMap(BaseMap):
     def __init__(self, extmap: ebv3d = None, mapPath=None):
         if extmap is None:
             extmap = ebv3d(mapPath=mapPath)
