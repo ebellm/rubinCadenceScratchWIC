@@ -69,9 +69,9 @@ class ebv3d(object):
             self.mapPath = self.default_map
         else:
             self.mapPath = mapPath[:]
-        
-        self.initialized=False
-        
+
+        self.initialized = False
+
         ### MAF SETTINGS
         self.keynames = ["ebv"]
         if load:
@@ -197,8 +197,7 @@ class ebv3d(object):
 
         self._calcDistmods()
 
-
-        self.initialized=True
+        self.initialized = True
 
     def _calcDistmods(self) -> None:
         """Converts distances in parsecs to distance moduli in magnitudes"""
@@ -543,8 +542,8 @@ class ebv3d(object):
             margins=margins,
         )
 
-class ebv3dMap(baseMap):
 
+class ebv3dMap(baseMap):
     def __init__(self, extmap: ebv3d = None, mapPath=None):
         if extmap is None:
             extmap = ebv3d(mapPath=mapPath)
@@ -553,9 +552,9 @@ class ebv3dMap(baseMap):
         else:
             if not extmap.initialized:
                 raise ValueError("The class has not been initialized.")
-        
-        self.extmap=extmap
-        
+
+        self.extmap = extmap
+
         ### MAF SETTINGS
         self.keynames = ["ebv"]
 
@@ -595,8 +594,8 @@ class ebv3dMap(baseMap):
 
         return slicePoints
 
-class MaxDistDeltaMagMap(baseMap):
 
+class MaxDistDeltaMagMap(baseMap):
     def __init__(self, extmap: ebv3d = None, mapPath=None):
         if extmap is None:
             extmap = ebv3d(mapPath=mapPath)
@@ -606,7 +605,7 @@ class MaxDistDeltaMagMap(baseMap):
             if not extmap.initialized:
                 raise ValueError("The class has not been initialized.")
 
-        self.extmap=extmap
+        self.extmap = extmap
 
         ### MAF SETTINGS
         self.keynames = ["maxdist"]
@@ -621,14 +620,16 @@ class MaxDistDeltaMagMap(baseMap):
             baseSlicer: Slicer with E(B-V) for each point.
         """
 
-        maxdist = self.extmap.getMaxDistDeltaMag(slicePoints['dmag'], slicePoints['sfilt'], slicePoints['sid'])
+        maxdist = self.extmap.getMaxDistDeltaMag(
+            slicePoints["dmag"], slicePoints["sfilt"], slicePoints["sid"]
+        )
 
         slicePoints["maxdist"] = maxdist
 
         return slicePoints
 
-class DistanceAtMAgMap(baseMap):
 
+class DistanceAtMAgMap(baseMap):
     def __init__(self, extmap: ebv3d = None, mapPath=None):
         if extmap is None:
             extmap = ebv3d(mapPath=mapPath)
@@ -638,7 +639,7 @@ class DistanceAtMAgMap(baseMap):
             if not extmap.initialized:
                 raise ValueError("The class has not been initialized.")
 
-        self.extmap=extmap
+        self.extmap = extmap
 
         ### MAF SETTINGS
         self.keynames = ["dist"]
@@ -653,7 +654,7 @@ class DistanceAtMAgMap(baseMap):
             baseSlicer: Slicer with E(B-V) for each point.
         """
 
-        maxdist = self.extmap.getDistanceAtMag(slicePoints['mag'], slicePoints['sfilt'], slicePoints['sid'])
+        maxdist = self.extmap.getDistanceAtMag(slicePoints["mag"], slicePoints["sfilt"], slicePoints["sid"])
 
         slicePoints["maxdist"] = maxdist
 
