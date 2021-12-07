@@ -69,10 +69,11 @@ class ebv3d(BaseMap):
             self.mapPath = self.default_map
         else:
             self.mapPath = mapPath[:]
-
+        
+        self.initialized=False
+        
         ### MAF SETTINGS
         self.keynames = ["ebv"]
-
         if load:
             self.loadMap()
 
@@ -195,6 +196,9 @@ class ebv3d(BaseMap):
         hdul.close()
 
         self._calcDistmods()
+
+
+        self.initialized=True
 
     def _calcDistmods(self) -> None:
         """Converts distances in parsecs to distance moduli in magnitudes"""
