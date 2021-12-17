@@ -656,8 +656,8 @@ class DistanceAtMAgMap(BaseMap):
             baseSlicer: Slicer with E(B-V) for each point.
         """
 
-        maxdist = self.extmap.getDistanceAtMag(slicePoints["mag"], slicePoints["sfilt"], slicePoints["sid"])
+        dist = self.extmap.getDistanceAtMag(slicePoints["mag"], slicePoints["sfilt"], slicePoints["sid"])
 
-        slicePoints["maxdist"] = maxdist
+        slicePoints["dist"] = dist
 
         return slicePoints
