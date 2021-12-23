@@ -588,23 +588,6 @@ showExtn, then the extinction at filter sfilt is shown. If showDeltamag, then th
                     cmap=cmap, sub=(2,2,iDist+1), \
                     norm=norm, margins=margins)
 
-        cbar = plt.gca().images[-1].colorbar
-        cmin, cmax = getColorbarLimits(cbar)
-        # The colorbar has log scale, which means that cmin=0 is not valid
-        # this should be handled by mollview, if not cmin is replaced by the
-        # smallest non-zero value of the array vecSho
-        if cmin==0:
-            cmin=np.amin(vecSho[vecSho!=0])
-        # Set tick positions and labels
-        cmap_ticks = np.logspace(math.log10(cmin),math.log10(cmax),num=5)
-        cbar.set_ticks(cmap_ticks,True)
-        cmap_labels = ["{:4.3g}".format(t) for t in cmap_ticks]
-        cbar.set_ticklabels(cmap_labels)
-        # Change the position of the colorbar label
-        text = [c for c in cbar.ax.get_children() if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
-        print(text.get_position())
-        text.set_y(-2.5) # valid for figsize=(14,8)
-
         hp.graticule(alpha=0.5, color='0.25')
         
         # show the distance between the nearest distance bin and the
@@ -698,24 +681,6 @@ delta-mag is found.
                 unit='Distance (pc)', \
                 cmap=cmap, norm=norm, \
                 max=maxDistShow)
-
-    cbar = plt.gca().images[-1].colorbar
-    cmin, cmax = getColorbarLimits(cbar)
-    # The colorbar has log scale, which means that cmin=0 is not valid
-    # this should be handled by mollview, if not cmin is replaced by the
-    # smallest non-zero value of the array vecSho
-    if cmin==0:
-        cmin=np.amin(sfilt[sfilt!=0])
-    # Set tick positions and labels
-    cmap_ticks = np.linspace(cmin,cmax,num=9)
-    cbar.set_ticks(cmap_ticks,True)
-    cmap_labels = ["{:5.0f}".format(t) for t in cmap_ticks]
-    cbar.set_ticklabels(cmap_labels)
-    cbar.ax.tick_params(labelsize=10) 
-    # Change the position of the colorbar label
-    text = [c for c in cbar.ax.get_children() if isinstance(c,matplotlib.text.Text) if c.get_text()][0]
-    print(text.get_position())
-    text.set_y(-3.) # valid for figsize=(8,6)
 
     # show a graticule
     hp.graticule(color='0.2', alpha=0.5)
