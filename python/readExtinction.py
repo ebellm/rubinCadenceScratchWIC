@@ -607,7 +607,7 @@ def testDeltamags(sfilt='r', dmagOne=13., \
                   pathMap='merged_ebv3d_nside64.fits', \
                   dmagVec=np.array([]), testMethod=False, \
                   testFigureMethod=False, testFarDistances=True, \
-                  maxDistShow=None):
+                  maxDistShow=None, fig=None):
 
     """Use the extinction map to find the distance at which a particular
 delta-mag is found.
@@ -671,12 +671,14 @@ delta-mag is found.
                                    coord=['C','G'], sUnit='Distance (pc)')
         return
 
-    
-    fig4=plt.figure(4, figsize=(8,6))
-    fig4.clf()
+    if fig is None:    
+        fig4=plt.figure(figsize=(8,6))
+        fig4.clf()
+    else:
+        fig4 = fig
     sTitle = r'Distance at $\Delta$%s=%.2f (%s scale)' \
              % (sfilt, dmagOne, norm)
-    hp.mollview(distsClosest, 4, coord=['C','G'], nest=ebv.nested, \
+    hp.mollview(distsClosest, fig4, coord=['C','G'], nest=ebv.nested, \
                 title=sTitle, \
                 unit='Distance (pc)', \
                 cmap=cmap, norm=norm, \
@@ -687,6 +689,8 @@ delta-mag is found.
 
     fig4.suptitle('NSIDE=%i, Filter:%s' % (ebv.nside, sfilt))
     fig4.savefig(figName)
+    
+    return distsClosest
 
 def testShowDistresol(pathMap='merged_ebv3d_nside64.fits'):
 
