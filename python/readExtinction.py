@@ -682,7 +682,7 @@ delta-mag is found.
                 title=sTitle, \
                 unit='Distance (pc)', \
                 cmap=cmap, norm=norm, \
-                max=maxDistShow)
+                max=maxDistShow,hold=True)
 
     # show a graticule
     hp.graticule(color='0.2', alpha=0.5)
